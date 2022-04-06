@@ -2,13 +2,13 @@
 
 Jak to funguje:
 - skript generuje IIIF Presentation API v3 s velikostí obrázků 1000x1000
-- přidáním /full na konec dotazu (ne pro ?link) se vygenerují reálné velikosti obrázků, ale déle to trvá
+- přidáním /full na konec dotazu (ne pro ?link) se vygenerují reálné velikosti obrázků, ale jen pro dokumenty, které mají obrázky IIIF Image
 - funguje pro knihovny z registr.digitalniknihovna.cz (pokud tam mají uvedený funkční Kramerius) a mzkk7 pro test API Krameria verze 7
 
 Formát url:
 
-https://api.digitalniknihovna.cz/kod_knihovny/uuid - bez reálné velikosti obrázků
-https://api.digitalniknihovna.cz/kod_knihovny/uuid/full - s reálnou velikostí obrázků
+https://iiif.digitalniknihovna.cz/kod_knihovny/uuid - bez reálné velikosti obrázků
+https://iiif.digitalniknihovna.cz/kod_knihovny/uuid/full - s reálnou velikostí obrázků
 
 Nebo
 https://iiif.digitalniknihovna.cz/?link='link do digitalni knihovny'
