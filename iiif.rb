@@ -629,8 +629,8 @@ def create_list_of_pages(uuid)
         image_iiif_control = control_404("#{@kramerius}/search/iiif/#{pages[0]['pid']}/info.json") 
         iiif_image_body_control = !(get_xml("#{@kramerius}/search/iiif/#{pages[0]['pid']}/info.json") == '')
         @image_iiif = image_iiif_control && iiif_image_body_control
-        @first_page_width = get_json("#{@kramerius}/search/iiif/#{pages[0]['pid']}/info.json")["width"]
-        @first_page_height = get_json("#{@kramerius}/search/iiif/#{pages[0]['pid']}/info.json")["height"]
+        # @first_page_width = get_json("#{@kramerius}/search/iiif/#{pages[0]['pid']}/info.json")["width"]
+        # @first_page_height = get_json("#{@kramerius}/search/iiif/#{pages[0]['pid']}/info.json")["height"]
     end
 
     # typhoeus test
@@ -673,18 +673,11 @@ def create_list_of_pages(uuid)
                     end
                 end
             end
-        # else
-        #     pages.each do |page| 
-        #         if !page["body_id_imgfull"].nil?
-        #             size = FastImage.size(page["body_id_imgfull"])
-        #             if !size.nil?
-        #                 page["width"] = size[0]
-        #                 page["height"] = size[1]
-        #                 # page["thumb_width"] = size[0].to_i/10
-        #                 # page["thumb_height"] = size[1].to_i/10
-        #             end
-        #         end
-        #     end
+        else
+            pages.each do |page| 
+                page["width"] = 1000
+                page["height"] = 1000
+            end
         end
     else
         pages.each do |page|
