@@ -3,7 +3,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'json'
 require 'typhoeus'
-require 'fastimage'
+# require 'fastimage'
 
 # @uuid = ARGV[0]
 if ARGV.length == 1
@@ -634,7 +634,7 @@ def create_list_of_pages(uuid)
     end
 
     # typhoeus test
-    if (@full || pages.length < 50)
+    if @full
         if @image_iiif
             hydra = Typhoeus::Hydra.new(max_concurrency: 10)
             requests = pids.map{ |pid|
@@ -673,19 +673,19 @@ def create_list_of_pages(uuid)
                     end
                 end
             end
-        else
-            pages.each do |page| 
-                if !page["body_id_imgfull"].nil?
-                    size = FastImage.size(page["body_id_imgfull"])
-                    if !size.nil?
-                        page["width"] = size[0]
-                        page["height"] = size[1]
-                        # page["thumb_width"] = size[0].to_i/10
-                        # page["thumb_height"] = size[1].to_i/10
-                    end
-                end
-            end
-        end
+        # else
+        #     pages.each do |page| 
+        #         if !page["body_id_imgfull"].nil?
+        #             size = FastImage.size(page["body_id_imgfull"])
+        #             if !size.nil?
+        #                 page["width"] = size[0]
+        #                 page["height"] = size[1]
+        #                 # page["thumb_width"] = size[0].to_i/10
+        #                 # page["thumb_height"] = size[1].to_i/10
+        #             end
+        #         end
+        #     end
+        # end
     else
         pages.each do |page|
             # if @image_iiif
