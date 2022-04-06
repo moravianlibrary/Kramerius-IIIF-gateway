@@ -685,7 +685,7 @@ def create_list_of_pages(uuid)
         #             end
         #         end
         #     end
-        # end
+        end
     else
         pages.each do |page|
             # if @image_iiif
