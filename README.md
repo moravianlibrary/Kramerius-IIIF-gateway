@@ -2,7 +2,7 @@
 
 How it works:
 - the script generates IIIF Presentation API v3 with canvas sizes 1000x1000
-- adding /full at the end of the query (not for ?link) will generate reel image sizes (only for documents with images available through IIIF image API)
+- adding /full at the end of the query (not for ?link) will generate real image sizes (only for documents with images available through IIIF image API)
 - works for libraries registered in registr.digitalniknihovna.cz (if the Kramerius listed there works) and mzkk7 to test the API of Kramerius version 7
 
 URL format:
