@@ -67,3 +67,5 @@ https://iiif.digitalniknihovna.cz/mzk/uuid:27055693-9413-43d3-8e61-d5048b14dd16
 Virtual collection (K7 only)
 
 https://iiif.digitalniknihovna.cz/mzkk7/uuid:faa04b5b-eaf7-4833-b98e-4a69eaffadba
+
+<p><b>test</b></p>
