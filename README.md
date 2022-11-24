@@ -1,23 +1,24 @@
-# iiif
+<h1>iiif</h1>
 
-## How it works:
-- the script generates IIIF Presentation API v3 with canvas sizes 1000x1000
-- adding /full at the end of the query (not for ?link) will generate real image sizes (only for documents with images available through IIIF image API)
-- works for libraries registered in registr.digitalniknihovna.cz (if the Kramerius listed there works) and mzkk7 to test the API of Kramerius version 7
+<h2>How it works</h2>
+<ul>
+  <li>the script generates IIIF Presentation API v3 with canvas sizes 1000x1000</li>
+  <li>adding <b>/full</b> at the end of the query (not for ?link) will generate real image sizes (only for documents with images available through IIIF image API)</li>
+  <li>works for libraries registered in https://registr.digitalniknihovna.cz (if the Kramerius listed there works) and mzkk7 to test the API of Kramerius version 7</li>
+</ul>
 
-URL format:
+<h2>URL format</h2>
 
-https://iiif.digitalniknihovna.cz/kod_knihovny/uuid - without real image sizes
+``https://iiif.digitalniknihovna.cz/kod_knihovny/uuid`` - without real image sizes
 
-https://iiif.digitalniknihovna.cz/kod_knihovny/uuid/full - with real image sizes
+``https://iiif.digitalniknihovna.cz/kod_knihovny/uuid/full`` - with real image sizes
 
-Or
-https://iiif.digitalniknihovna.cz/?link='link to the digital library'
+``https://iiif.digitalniknihovna.cz/?link='link to the digital library'``
 
-Example:
-https://iiif.digitalniknihovna.cz/?link=https://www.digitalniknihovna.cz/mzk/view/uuid:6dfb1870-a657-11eb-94e5-005056827e52?page=uuid:d8ea53a7-278a-42ab-b05c-a4b6dc9e8450
+<i>Example:
+https://iiif.digitalniknihovna.cz/?link=https://www.digitalniknihovna.cz/mzk/view/uuid:6dfb1870-a657-11eb-94e5-005056827e52?page=uuid:d8ea53a7-278a-42ab-b05c-a4b6dc9e8450</i>
 
-## Examples for different types of documents: 
+<h2>Examples for different types of documents</h2>
 
 Monograph
 
@@ -67,5 +68,3 @@ https://iiif.digitalniknihovna.cz/mzk/uuid:27055693-9413-43d3-8e61-d5048b14dd16
 Virtual collection (K7 only)
 
 https://iiif.digitalniknihovna.cz/mzkk7/uuid:faa04b5b-eaf7-4833-b98e-4a69eaffadba
-
-<p><b>test</b></p>
