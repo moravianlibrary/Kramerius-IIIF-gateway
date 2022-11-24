@@ -7,7 +7,7 @@ How it works:
 
 URL format:
 
-https://iiif.digitalniknihovna.cz/kod_knihovny/uuid - withut real image sizes
+https://iiif.digitalniknihovna.cz/kod_knihovny/uuid - without real image sizes
 https://iiif.digitalniknihovna.cz/kod_knihovny/uuid/full - with real image sizes
 
 Or
