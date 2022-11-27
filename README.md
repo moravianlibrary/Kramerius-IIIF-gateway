@@ -24,6 +24,10 @@ Monograph
 
 https://iiif.digitalniknihovna.cz/mzk/uuid:ca15a389-e5eb-4c19-b0d0-f919066ef2ba
 
+Multiple volume monograph
+
+https://iiif.digitalniknihovna.cz/mzkk7/uuid:7e11fe20-043e-11e5-95ff-5ef3fc9bb22f
+
 Periodical title
 
 https://iiif.digitalniknihovna.cz/mzk/uuid:ae81bb20-435d-11dd-b505-00145e5790ea
@@ -67,4 +71,4 @@ https://iiif.digitalniknihovna.cz/mzk/uuid:27055693-9413-43d3-8e61-d5048b14dd16
 
 Virtual collection (K7 only)
 
-https://iiif.digitalniknihovna.cz/mzkk7/uuid:faa04b5b-eaf7-4833-b98e-4a69eaffadba
+https://iiif.digitalniknihovna.cz/mzkk7/uuid:c524ed10-7ebb-4a7f-8b5b-e0a160c52d2c
