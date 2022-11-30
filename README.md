@@ -1,4 +1,5 @@
-<h1>iiif</h1>
+<div style="color:green">sdad</div>
+<h1>IIIF Presentation API Gateway</h1>
 
 <h2>How it works</h2>
 <ul>
