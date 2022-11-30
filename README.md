@@ -1,4 +1,4 @@
-<div style="color:green">sdad</div>
+<div style="font-family:Roboto">
 <h1>IIIF Presentation API Gateway</h1>
 
 <h2>How it works</h2>
@@ -73,3 +73,4 @@ https://iiif.digitalniknihovna.cz/mzk/uuid:27055693-9413-43d3-8e61-d5048b14dd16
 Virtual collection (K7 only)
 
 https://iiif.digitalniknihovna.cz/mzkk7/uuid:c524ed10-7ebb-4a7f-8b5b-e0a160c52d2c
+</div>
