@@ -21,7 +21,7 @@ else
         @full = false
     end
 end
-@registrkrameriu = "https://registr.digitalniknihovna.cz/api/libraries"
+@registrkrameriu = "https://api.registr.digitalniknihovna.cz/api/libraries"
 @url_manifest = "https://iiif.digitalniknihovna.cz"
 @mods
 @canvasIndex = 0

@@ -1,5 +1,6 @@
 const express = require('express');
 const app = express();
+const https = require('https');
 module.exports = app;
 
 //---------------- HEADER - CORS ---------------------------------
@@ -18,6 +19,7 @@ app.use(express.static('public'))
 //----------------------------------------------------------------
 
 const { spawn } = require('child_process');
+const { Http2ServerRequest } = require('http2');
 
 app.get("/:library/:uuid/:full?", (req, res, next) => {
 
@@ -43,22 +45,39 @@ app.get("/:library/:uuid/:full?", (req, res, next) => {
 });
 
 app.get("/", (req, res, next) => {
-    const link = req.query.link;
-    const ruby = spawn('ruby', ['iiif.rb', link]);
     
-    let result = ""
-    ruby.stdout.on('data', (data) => {
-        result += data.toString();
-    });
-
-    ruby.on('close', (code) => {
-        res.status(200).json(
-            // message: 'success',
-            JSON.parse(result)
-        )
-    });
+    if (req.query.link) {
+        const link = req.query.link;
+        const ruby = spawn('ruby', ['iiif.rb', link]);
+        
+        let result = ""
+        ruby.stdout.on('data', (data) => {
+            result += data.toString();
+        });
+    
+        ruby.on('close', (code) => {
+            res.status(200).json(
+                // message: 'success',
+                JSON.parse(result)
+            )
+        });
+    } else {
+        https.get('https://raw.githubusercontent.com/moravianlibrary/Kramerius-IIIF-gateway/master/README.md', (resp) => {
+            let data = '';
+            resp.on('data', (bla) => {
+                data += bla
+            })
+            resp.on('end', () => {
+                // console.log((data));
+                res.send(data)
+              });
+        })
+        
+        
+    }
 
 });
+
 
 
 
