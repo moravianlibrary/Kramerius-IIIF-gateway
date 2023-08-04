@@ -405,7 +405,7 @@ def create_metadata
     #     metadata.push(title)
     # end
     if !@mods["authors"].nil?
-        author = {"label" => {"cz" => ["Autor"]}, "value" => {"none" => [@mods["authors"]]}}
+        author = {"label" => {"cz" => ["Autor"]}, "value" => {"none" => @mods["authors"]}}
         metadata.push(author)
     end
     if @document_model == "periodicalvolume" || @document_model == "periodicalitem"
@@ -425,7 +425,7 @@ def create_metadata
         end
     end
     if !@mods["languages"].nil?
-        subtitle = {"label" => {"cz" => ["Jazyk"]}, "value" => {"none" => [@mods["languages"]]}}
+        subtitle = {"label" => {"cz" => ["Jazyk"]}, "value" => {"none" => @mods["languages"]}}
         metadata.push(subtitle)
     end
     # return JSON.pretty_generate(metadata)
@@ -828,7 +828,7 @@ def create_iiif_monograph
             "items" => create_items_pages(@uuid)
         }
     elsif @document_model == 'monographunit'
-        context = "https://iiif.io/api/presentation/3/context.json"
+        context = "http://iiif.io/api/presentation/3/context.json"
         iiif = {"@context" => context, 
             "id" => "#{@url_manifest}/#{@library}/#{@uuid}", 
             "type" => "Manifest", 
@@ -842,7 +842,7 @@ def create_iiif_monograph
             "partOf" => part_of
         }
     else
-        context = "https://iiif.io/api/presentation/3/context.json"
+        context = "http://iiif.io/api/presentation/3/context.json"
         iiif = {"@context" => context, 
             "id" => "#{@url_manifest}/#{@library}/#{@uuid}", 
             "type" => "Manifest", 
@@ -861,7 +861,7 @@ end
 
 # ---------- VICESVAZKY -----------
 def create_iiif_monograph_collection
-    context = "https://iiif.io/api/presentation/3/context.json"
+    context = "http://iiif.io/api/presentation/3/context.json"
     iiif = {"@context" => context, 
         "id" => "#{@url_manifest}/#{@library}/#{@uuid}", 
         "type" => "Collection", 
@@ -932,7 +932,7 @@ end
 # ---------- CISLO PERIODIKA -----------
 
 def create_iiif_periodicalissue
-    iiif = {"@context" => "https://iiif.io/api/presentation/3/context.json", 
+    iiif = {"@context" => "http://iiif.io/api/presentation/3/context.json", 
                 "id" => "#{@url_manifest}/#{@library}/#{@uuid}", 
                 "type" => "Manifest", 
                 "label" => create_label(@uuid), 
@@ -949,7 +949,7 @@ end
 # ---------- ROCNIK PERIODIKA -----------
 
 def create_iiif_periodicalvolume
-    iiif = {"@context" => "https://iiif.io/api/presentation/3/context.json", 
+    iiif = {"@context" => "http://iiif.io/api/presentation/3/context.json", 
                 "id" => "#{@url_manifest}/#{@library}/#{@uuid}", 
                 "type" => "Collection", 
                 "label" => create_label(@uuid), 
