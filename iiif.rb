@@ -371,6 +371,18 @@ def mods_extractor
     xmldoc.xpath("modsCollection/mods/subject/cartographics/coordinates").each do |c|
         mods["coordinates"] = c.text
     end
+    # monograph volume part
+    xmldoc.xpath("modsCollection/mods/part").each do |part|
+        if part.xpath("@type").to_s == "Volume"
+            if !part.xpath("detail/number").nil?
+                part.xpath("detail/number").each do |detail|
+                    partNumber = detail.text
+                    mods["partNumber"] = partNumber
+                end
+            end
+        end
+    end
+
     return mods
 end
 
@@ -381,7 +393,7 @@ def create_label(uuid)
         label = {"none" => ["#{@root_title} (#{@document["date"]})"]}
     elsif @document_model == "soundunit"
             label = {"none" => ["#{@root_title} (#{@mods["partName"]})"]}
-    else label = {"cz" => [@mods["title"]]}
+    else label = {"none" => [@mods["title"]]}
     end
     return label
 end
@@ -414,10 +426,14 @@ def create_metadata
         metadata.push(number)
         metadata.push(date)
     elsif @document_model == "soundunit" || @document_model == "monographunit"
-        number = {"label" => {"cz" => ["Číslo části"]}, "value" => {"none" => [@mods["partNumber"]]}}
-        name = {"label" => {"cz" => ["Název části"]}, "value" => {"none" => [@mods["partName"]]}}
-        metadata.push(number)
-        metadata.push(name)
+        if !@mods["partNumber"].nil?
+            number = {"label" => {"cz" => ["Číslo části"]}, "value" => {"none" => [@mods["partNumber"]]}}
+            metadata.push(number)
+        end
+        if !@mods["partName"].nil?
+            name = {"label" => {"cz" => ["Název části"]}, "value" => {"none" => [@mods["partName"]]}}
+            metadata.push(name)
+        end
     elsif !@mods["published"].nil?
         if @mods["published"].length > 0
             published = {"label" => {"cz" => ["Nakladatelské údaje"]}, "value" => {"none" => [@mods["published"]]}}
@@ -788,7 +804,7 @@ def part_of
                 if response_body["#{@fedora_model}"] == "periodical" || response_body["#{@fedora_model}"] == "periodicalvolume" || response_body["#{@fedora_model}"] == "soundrecording" || response_body["#{@fedora_model}"] == "monograph"
                     item["id"] = "#{@url_manifest}/#{@library}/#{pid}"
                     item["type"] = "Collection"
-                    item["label"] = response_body["#{@root_title_url}"]
+                    item["label"] = { "none": [response_body["#{@root_title_url}"]]}
                 end
                 partOf.push(item)
             end
@@ -802,7 +818,7 @@ def part_of
             if response_body["#{@fedora_model}"] == "periodical" || response_body["#{@fedora_model}"] == "periodicalvolume" || response_body["#{@fedora_model}"] == "soundrecording" || response_body["#{@fedora_model}"] == "monograph"
                 item["id"] = "#{@url_manifest}/#{@library}/#{pid}"
                 item["type"] = "Collection"
-                item["label"] = response_body["#{@root_title_url}"]
+                item["label"] = { "none": [response_body["#{@root_title_url}"]]}
             end
             partOf.push(item)
         end
@@ -883,8 +899,13 @@ def create_items_monographunits
     monographunits.each do |monographunit|
         item = {"id" => "#{@url_manifest}/#{@library}/#{monographunit["pid"]}",
                 "type" => "Manifest",
-                "label" => "#{monographunit["label"]} "
+                # "label" => {"non": ["#{monographunit["label"]}"]}
                }
+        if !monographunit["label"].nil?
+            item["label"] = {"none": ["#{monographunit["label"]}"]}
+        elsif !monographunit["pid"].nil?
+            item["label"] = {"none": ["#{monographunit["title"]}"]}
+        end
         itemsMonographunits.push(item)
     end
     return itemsMonographunits
@@ -895,7 +916,6 @@ def create_list_of_monographunits
     object = get_json("#{@kramerius}#{@solr_url}fl=#{@pid},#{@details},#{@rels_ext_index},#{@fedora_model},#{@title_url}&q=#{@parent_pid}:#{uuid} AND #{@fedora_model}:monographunit&rows=1500&start=0")
     response_body = object["response"]["docs"]
     sorted_object = response_body.sort { |a, b| a["#{@rels_ext_index}"] <=> b["#{@rels_ext_index}"]}
-
     monographunits = []
 
     sorted_object.each do |monographunit|
@@ -919,7 +939,10 @@ def create_list_of_monographunits
             if !monographunit["part.name"].nil?
                 monographunit_properties["title"] = monographunit["part.name"]
                 monographunit_properties["label"] = monographunit["part.name"]
+            else
+                    monographunit_properties["label"] = monographunit["title.search"]
             end
+            
         end
         monographunits.push(monographunit_properties)
     end
@@ -1005,7 +1028,8 @@ def create_items_periodical_issues
     issues.each do |issue|
         item = {"id" => "#{@url_manifest}/#{@library}/#{issue["pid"]}",
                 "type" => "Manifest",
-                "label" => "#{@root_title} (#{issue["issue_date"]})"
+                # "label" => "#{@root_title} (#{issue["issue_date"]})"
+                "label" => {"none": ["#{@root_title} (#{issue["issue_date"]})"]}
                }
         itemsIssues.push(item)
     end
@@ -1068,7 +1092,8 @@ def create_items_periodical_volumes
     volumes.each do |volume|
         item = {"id" => "#{@url_manifest}/#{@library}/#{volume["pid"]}",
                 "type" => "Collection",
-                "label" => volume["volume_date"]
+                "label" => {"none": [volume["volume_date"]]}
+                
                }
         itemsVolumes.push(item)
     end
@@ -1114,7 +1139,7 @@ def create_items_soundrecording
         end
         range = {"id" => "#{@url_manifest}/#{@library}/#{@uuid}/range/#{index}",
                  "type" => "Range",
-                 "label" => "#{soundunit["title"]}",
+                 "label" => {"none": ["#{soundunit["title"]}"]},
                  "items" => range_items
                 }
         @rangeIndex += 1
@@ -1226,7 +1251,7 @@ def create_items_konvolut
     konvolut_parts.each do |part|
         item = {"id" => "#{@url_manifest}/#{@library}/#{part["pid"]}",
                 "type" => "Manifest",
-                "label" => part["label"]
+                "label" => {"none": [part["label"]]}
                }
         itemsKonvolut.push(item)
     end
@@ -1274,13 +1299,13 @@ def create_items_collection
         if part["#{@fedora_model}"] == "collection"
             item = {"id" => "#{@url_manifest}/#{@library}/#{part["pid"]}",
                     "type" => "Collection",
-                    "label" => part["label"]
+                    "label" => {"none": [part["label"]]}
                 }
                 itemsCollection.push(item)
         else
             item = {"id" => "#{@url_manifest}/#{@library}/#{part["pid"]}",
                     "type" => "Manifest",
-                    "label" => part["label"]
+                    "label" => {"none": [part["label"]]}
                 }
                 itemsCollection.push(item)
         end
@@ -1334,7 +1359,7 @@ def create_rendering(uuid)
     pdf_properties = {
         "id" => "#{@kramerius}#{@items}#{@uuid}/streams/IMG_FULL",
         "type" => "Text",
-        "label" => { "en": [ "PDF" ] },
+        "label" => { "none": [ "PDF" ] },
         "format" => "application/pdf"
     }
     rendering.push(pdf_properties)
