@@ -578,10 +578,15 @@ end
 
 def create_list_of_pages(uuid)
     # nactu a seradim si stranky  
-    solr_request = "#{@kramerius}#{@solr_url}fl=#{@pid},#{@details},#{@rels_ext_index},#{@fedora_model}&q=#{@parent_pid}:#{uuid} AND #{@fedora_model}:page&rows=1500&start=0"
+    solr_request = "#{@kramerius}#{@solr_url}fl=#{@pid},#{@details},#{@rels_ext_index},#{@fedora_model},model_path&q=#{@parent_pid}:#{uuid} AND #{@fedora_model}:page&rows=1500&start=0"
     object = get_json(solr_request)
     response_body = object["response"]["docs"]
-    sorted_object = response_body.sort { |a, b| a[@rels_ext_index] <=> b[@rels_ext_index]}
+    # specialni pripad, kdyz je v rels_ext_index vice hodnot (v K5)
+    if response_body[0][@rels_ext_index].is_a?(Array)
+        sorted_object = response_body.sort { |a, b| a[@rels_ext_index][ a["model_path"].index(a["model_path"].min_by{ |s| s.length })] <=> b[@rels_ext_index][b["model_path"].index(b["model_path"].min_by{ |s| s.length })]}
+    else
+        sorted_object = response_body.sort { |a, b| a[@rels_ext_index] <=> b[@rels_ext_index]}
+    end
     pids = []
     pages = []
 
