@@ -633,8 +633,10 @@ def create_list_of_pages(uuid)
         elsif @v == "k7"
             if !page["page.number"].nil?
                 page_properties["page_number"] = page["page.number"]
-                page_properties["label"] = page_properties["page_number"]
+            else
+                page_properties["page_number"] = "X"
             end
+            page_properties["label"] = page_properties["page_number"]
             if !page["page.type"].nil?
                 page_properties["page_type"] = page["page.type"]
                 page_properties["label"] = page_properties["label"] + ' (' + page_properties["page_type"] + ')'
