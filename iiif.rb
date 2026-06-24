@@ -21,6 +21,10 @@ else
         @full = false
     end
 end
+
+# Temporary alias for old Charles University links.
+@library = "cuni" if @library == "uk"
+
 @registrkrameriu = "https://api.registr.digitalniknihovna.cz/api/libraries"
 @url_manifest = "https://iiif.digitalniknihovna.cz"
 @mods
