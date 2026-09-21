@@ -1,0 +1,335 @@
+{
+  "library": "mzk",
+  "documents": [
+    {
+      "label": "model:monograph",
+      "pid": "uuid:71d66fe0-d986-11e2-9923-005056827e52",
+      "library": "mzk",
+      "model": "monograph",
+      "pages": 202,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:monographunit",
+      "pid": "uuid:551502c0-7a40-11ee-bf21-005056827e52",
+      "library": "mzk",
+      "model": "monographunit",
+      "pages": 214,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:manuscript",
+      "pid": "uuid:8aff1e7b-4a68-47f5-a98d-6ed9a2faf28a",
+      "library": "mzk",
+      "model": "manuscript",
+      "pages": 493,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:map",
+      "pid": "uuid:0acfebfb-3a57-4d62-8b8f-9e58da01c96c",
+      "library": "mzk",
+      "model": "map",
+      "pages": 1,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:graphic",
+      "pid": "uuid:e62297e6-502a-4d39-a797-1d8f18c77a3d",
+      "library": "mzk",
+      "model": "graphic",
+      "pages": 83,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:sheetmusic",
+      "pid": "uuid:745a0189-8680-4150-a7cc-2f12e0152f47",
+      "library": "mzk",
+      "model": "sheetmusic",
+      "pages": 31,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:archive",
+      "pid": "uuid:b1c9ceaf-adfe-4147-8270-36965c554556",
+      "library": "mzk",
+      "model": "archive",
+      "pages": 4,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:periodical",
+      "pid": "uuid:58b9d800-5e81-11ed-85d9-5ef3fc9bb22f",
+      "library": "mzk",
+      "model": "periodical",
+      "pages": null,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:periodicalvolume",
+      "pid": "uuid:1724e800-be4c-11ed-ac82-5ef3fc9bb22f",
+      "library": "mzk",
+      "model": "periodicalvolume",
+      "pages": null,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:periodicalitem",
+      "pid": "uuid:b1eb7130-5d79-11e3-ae59-005056827e52",
+      "library": "mzk",
+      "model": "periodicalitem",
+      "pages": 399,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:supplement",
+      "pid": "uuid:fea96b90-e70b-11e4-9c07-001018b5eb5c",
+      "library": "mzk",
+      "model": "supplement",
+      "pages": 4,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:article",
+      "pid": "uuid:022321ca-b665-46aa-8ee1-88adb67f73ea",
+      "library": "mzk",
+      "model": "article",
+      "pages": 4,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:internalpart",
+      "pid": "uuid:2fc6e2a0-8982-11dd-9329-000d606f5dc6",
+      "library": "mzk",
+      "model": "internalpart",
+      "pages": 24,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:picture",
+      "pid": "uuid:062ada22-b567-451e-9310-e1e2e2343f08",
+      "library": "mzk",
+      "model": "picture",
+      "pages": 1,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:soundrecording",
+      "pid": "uuid:f40754db-a439-4321-9441-3c008a4200e6",
+      "library": "mzk",
+      "model": "soundrecording",
+      "pages": 2,
+      "accessibility": "private"
+    },
+    {
+      "label": "model:convolute",
+      "pid": "uuid:1001534e-de50-4ef5-8213-4923df8a516c",
+      "library": "mzk",
+      "model": "convolute",
+      "pages": null,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:collection",
+      "pid": "uuid:30111c3c-5036-459f-848a-fbed73234990",
+      "library": "mzk",
+      "model": "collection",
+      "pages": null,
+      "accessibility": "public"
+    },
+    {
+      "label": "size: 1 page",
+      "pid": "uuid:17522530-7be8-11ea-b147-005056827e51",
+      "library": "mzk",
+      "model": "monograph",
+      "pages": 1,
+      "accessibility": "private"
+    },
+    {
+      "label": "size: ~10 pages",
+      "pid": "uuid:79e098b0-586d-11e5-bc53-005056827e52",
+      "library": "mzk",
+      "model": "monograph",
+      "pages": 8,
+      "accessibility": "public"
+    },
+    {
+      "label": "size: ~200 pages",
+      "pid": "uuid:f8748238-086f-4c79-97f0-f0c75bf1d66d",
+      "library": "mzk",
+      "model": "manuscript",
+      "pages": 209,
+      "accessibility": "public"
+    },
+    {
+      "label": "size: ~900 pages",
+      "pid": "uuid:73780a30-937d-11e5-ac67-005056827e51",
+      "library": "mzk",
+      "model": "monograph",
+      "pages": 920,
+      "accessibility": "private"
+    },
+    {
+      "label": "size: largest",
+      "pid": "uuid:069f8740-016d-11e6-845a-005056827e51",
+      "library": "mzk",
+      "model": "periodicalitem",
+      "pages": 3568,
+      "accessibility": "private"
+    },
+    {
+      "label": "pdf, no pages",
+      "pid": "uuid:7891f49f-74be-4ed8-b65a-a3ba5df01ff0",
+      "library": "mzk",
+      "model": "monograph",
+      "pages": null,
+      "accessibility": "private"
+    },
+    {
+      "label": "cartographic",
+      "pid": "uuid:7e2f377e-82c8-47af-b786-f78e1add3abd",
+      "library": "mzk",
+      "model": "map",
+      "pages": 1,
+      "accessibility": "public"
+    },
+    {
+      "label": "catalogued",
+      "pid": "uuid:6a02ac86-666a-474b-a18b-e383d99337b8",
+      "library": "mzk",
+      "model": "monograph",
+      "pages": 706,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:periodical",
+      "pid": "uuid:17f63f3c-1e0e-47a3-90ed-6c99df079585",
+      "library": "lmda",
+      "model": "periodical",
+      "pages": 0,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:periodicalvolume",
+      "pid": "uuid:12ac49da-c27c-4ceb-8d8d-750f6069ec55",
+      "library": "lmda",
+      "model": "periodicalvolume",
+      "pages": 0,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:periodicalitem",
+      "pid": "uuid:b0c65008-df40-4ca3-a2a6-b79874ff80f8",
+      "library": "lmda",
+      "model": "periodicalitem",
+      "pages": 0,
+      "accessibility": "public"
+    },
+    {
+      "label": "model:supplement",
+      "pid": "uuid:27a7f24a-7137-437c-aa85-57b46d985db3",
+      "library": "lmda",
+      "model": "supplement",
+      "pages": 0,
+      "accessibility": "public"
+    },
+    {
+      "label": "documented: /full",
+      "pid": "uuid:ed255350-301b-11ed-be63-005056827e52",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Monograph",
+      "pid": "uuid:ca15a389-e5eb-4c19-b0d0-f919066ef2ba",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Multiple volume monograph",
+      "pid": "uuid:7e11fe20-043e-11e5-95ff-5ef3fc9bb22f",
+      "library": "mzkk7",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Periodical title",
+      "pid": "uuid:ae81bb20-435d-11dd-b505-00145e5790ea",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Periodical volume",
+      "pid": "uuid:b2268013-435d-11dd-b505-00145e5790ea",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Periodical item",
+      "pid": "uuid:ee18e055-435d-11dd-b505-00145e5790ea",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Graphic",
+      "pid": "uuid:e8933b86-fecc-45cc-962c-d22e9271eee4",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Map",
+      "pid": "uuid:ba4934d1-0a1e-4a01-a89d-c948477ca833",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Sheet music",
+      "pid": "uuid:61f6fddf-27ca-4acc-a756-a2fedc6508b8",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Archival document",
+      "pid": "uuid:b85c556b-07e1-46c7-b342-9602009f1bd5",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Manuscript",
+      "pid": "uuid:5e0d749d-c560-4b8c-aae7-665cb952b655",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Sound recordings",
+      "pid": "uuid:4067ca61-96f7-48b6-9fa3-8a127a4df5e6",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: PDF - does not generate items, just meta",
+      "pid": "uuid:27055693-9413-43d3-8e61-d5048b14dd16",
+      "library": "mzk",
+      "model": null,
+      "pages": null
+    },
+    {
+      "label": "documented: Virtual collection (K7 only)",
+      "pid": "uuid:c524ed10-7ebb-4a7f-8b5b-e0a160c52d2c",
+      "library": "mzkk7",
+      "model": null,
+      "pages": null
+    }
+  ]
+}

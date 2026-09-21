@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Kramerius IIIF gateway</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.5rem; }
+  code { background: color-mix(in srgb, currentColor 10%, transparent); padding: .1em .35em; border-radius: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  td, th { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent); }
+  h2 { margin-top: 2.5rem; }
+</style>
+
+<h1>Kramerius IIIF gateway</h1>
+
+<p>IIIF <a href="https://iiif.io/api/presentation/3.0/">Presentation API 3.0</a> manifests for the digital
+libraries in the <a href="https://registr.digitalniknihovna.cz">Kramerius registry</a>.</p>
+
+<h2>Endpoints</h2>
+<table>
+  <tr><th>Route</th><th>What it returns</th></tr>
+  <tr><td><code>/{library}/{pid}</code></td><td>The manifest or collection for one object.</td></tr>
+  <tr><td><code>/{library}/{pid}/dimensions</code></td><td>How much of this document's page sizes are cached.</td></tr>
+  <tr><td><code>/resolve?link=…</code></td><td>Redirects from a Digital Library URL to its manifest.</td></tr>
+  <tr><td><code>/libraries</code></td><td>Which libraries resolve, to which adapter, and how the sync is doing.</td></tr>
+  <tr><td><code>/health</code>, <code>/version</code></td><td>Operational.</td></tr>
+</table>
+
+<h2>Example</h2>
+<p><code>/mzk/uuid:71d66fe0-d986-11e2-9923-005056827e52</code></p>
+
+<p>Manifests are served with <code>Access-Control-Allow-Origin: *</code>, so they load directly in
+Mirador, the Universal Viewer and Clover.</p>
+
+<p>A response carrying <code>X-IIIF-Dimensions: partial</code> is provisional: some canvases still declare
+a nominal size while the real ones are being measured. It is not cached, and a later request returns the
+complete manifest.</p>

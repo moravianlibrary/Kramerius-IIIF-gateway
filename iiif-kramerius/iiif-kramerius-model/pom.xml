@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LEVEL 1 — what a Kramerius IIIF manifest looks like.
+
+  The IIIF Presentation v3 vocabulary, the set of document shapes, the kinds of children a document can
+  have, and every string this gateway authors. Declarations, not behaviour.
+
+  Deliberately knows nothing about *which* Kramerius model produces which shape: models come and go
+  between Kramerius versions, so that table is adapter knowledge and lives at level 4.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-kramerius-parent</artifactId>
+    <version>1.0.0</version>
+  </parent>
+  <artifactId>iiif-kramerius-model</artifactId>
+  <name>IIIF Kramerius Model</name>
+  <description>IIIF v3 vocabulary, document shapes and authored strings</description>
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        Publish the test classes: IiifSchema is the harness every level uses to assert that what it
+        emits is legal IIIF, and duplicating it per module is how the levels would drift apart.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

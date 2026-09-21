@@ -1,0 +1,56 @@
+{
+  "_comment": [
+    "Which manifest shape each Kramerius 5 document model produces.",
+    "",
+    "Separate from kramerius-70.json because K5's model set is genuinely narrower, not merely older.",
+    "Measured live across three instances — nkp 5.8.4.4, nlk 5.8.4.5 and vugtk 5.4.2 — the union is:",
+    "",
+    "  page, monograph, monographunit, periodical, periodicalvolume, periodicalitem, supplement,",
+    "  article, internalpart, chapter, map, sheetmusic, graphic",
+    "",
+    "Note what is ABSENT from every K5 instance measured: soundrecording, soundunit and track (K5 has no",
+    "audio model at all), collection, convolute, archive, manuscript, picture and oldprintsheetmusic.",
+    "Listing them here would be inventing capability, so they are not listed. If a K5 instance turns up",
+    "with one, add it here — that is the point of the table being data.",
+    "",
+    "`chapter` appears only at nlk and holds no pages of its own, so it is a component rather than a",
+    "document: requesting one is `unsupported` rather than a manifest with nothing in it.",
+    "",
+    "K5 has no foster relationship, so `fostersPages` is false everywhere: an article's pages are found",
+    "through parent_pid like everything else. That is one of the few places K5 is simpler than K7."
+  ],
+
+  "models": {
+    "monograph": {
+      "shape": "PAGES",
+      "promoteTo": "monographcollection",
+      "promoteWhen": "MONOGRAPH_UNITS"
+    },
+    "monographcollection": { "shape": "MEMBERS", "children": "MONOGRAPH_UNITS" },
+    "monographunit": { "shape": "PAGES", "hasAncestors": true },
+
+    "map": { "shape": "PAGES" },
+    "graphic": { "shape": "PAGES" },
+    "sheetmusic": { "shape": "PAGES" },
+
+    "periodical": { "shape": "MEMBERS", "children": "PERIODICAL_VOLUMES" },
+    "periodicalvolume": {
+      "shape": "MEMBERS",
+      "children": "PERIODICAL_ISSUES",
+      "hasAncestors": true
+    },
+    "periodicalitem": { "shape": "PAGES", "hasAncestors": true },
+    "supplement": { "shape": "PAGES", "hasAncestors": true },
+
+    "article": { "shape": "PAGES", "hasAncestors": true },
+    "internalpart": { "shape": "PAGES", "hasAncestors": true }
+  },
+
+  "_componentsComment": [
+    "Models that are only ever part of a document. Requesting one is `unsupported`, not `not found` —",
+    "the object exists, it simply is not something a manifest can represent."
+  ],
+  "components": ["page", "chapter"],
+
+  "pageModel": "page"
+}

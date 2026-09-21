@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The standalone service. One fat jar, two roles:
+
+      java -jar iiif-gateway.jar web       serves manifests; no long-running work
+      java -jar iiif-gateway.jar worker    dimension jobs + sync; serves nothing
+
+  Two packages:
+    adapter  reaching Kramerius over its REST/Solr API — the version-floor adapters, and THE MODEL
+             TABLES, because which models exist changes between Kramerius releases
+    gateway  the service itself
+
+  They are one module because the gateway is the only consumer of the adapters; splitting them bought a
+  module boundary and no second reuser.
+
+  This is the only module that touches JDBC, and the only one that knows a port number exists.
+  See docs/DESIGN.md for why the roles are split and why Postgres carries the job queue.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-gateway-parent</artifactId>
+    <version>2.0.0</version>
+  </parent>
+
+  <artifactId>iiif-gateway</artifactId>
+  <name>IIIF Gateway</name>
+  <description>Standalone IIIF Presentation v3 service for Kramerius libraries</description>
+
+  <properties>
+    <main.class>cz.mzk.iiif.gateway.Gateway</main.class>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-rest</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-spi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.javalin</groupId>
+      <artifactId>javalin</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <shadedArtifactAttached>false</shadedArtifactAttached>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>${main.class}</mainClass>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <filters>
+                <filter>
+                  <!-- Jetty and friends ship signatures that a shaded jar invalidates. -->
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>module-info.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

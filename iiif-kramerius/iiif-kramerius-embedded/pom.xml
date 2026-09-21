@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Kramerius embedding the manifest builder in its own application.
+
+  This module exists to keep a claim honest: that an application serving its own repository needs level 2
+  and nothing else. It therefore depends on iiif-kramerius-build ONLY — no SPI, no adapters, no gateway.
+  If that dependency ever has to grow, the layering is wrong and the build says so.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-kramerius-parent</artifactId>
+    <version>1.0.0</version>
+  </parent>
+
+  <artifactId>iiif-kramerius-embedded</artifactId>
+  <name>IIIF Kramerius embedded example</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-build</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-model</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+    </dependency>
+  </dependencies>
+</project>

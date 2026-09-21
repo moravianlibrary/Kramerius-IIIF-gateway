@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  THE LIBRARY. Building a IIIF Presentation v3 manifest from Kramerius' document models.
+
+  Three modules, three levels:
+
+    iiif-kramerius-model      what a manifest is — the v3 vocabulary, the shapes, the authored strings
+    iiif-kramerius-build      how one is constructed from data it is handed
+    iiif-kramerius-embedded   the worked example of an application doing exactly that, in-process
+
+  WHAT IS NOT HERE IS THE POINT. There is no SPI, no Repository, no adapter, no registry and no
+  per-library configuration, because an application serving its own repository has none of those
+  problems: it already holds its records. All of that lives in gateway/, which needs it precisely
+  because a gateway serves libraries it does not own. iiif-kramerius-embedded is what proves the
+  claim — it builds a manifest with this project and nothing else, and its test fails if that stops
+  being true.
+
+  Versioned separately from the gateway (see ../pom.xml). This number is a compatibility promise to
+  whoever embeds it; the gateway's says which build is deployed.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-build-config</artifactId>
+    <version>1</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>iiif-kramerius-parent</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+
+  <name>IIIF Kramerius</name>
+  <description>IIIF Presentation v3 manifests from Kramerius document models</description>
+
+  <!-- In dependency order. The direction is enforced by the build, not by convention. -->
+  <modules>
+    <module>iiif-kramerius-model</module>
+    <module>iiif-kramerius-build</module>
+    <module>iiif-kramerius-embedded</module>
+  </modules>
+</project>

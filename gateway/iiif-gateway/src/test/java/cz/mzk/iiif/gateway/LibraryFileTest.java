@@ -1,0 +1,210 @@
+/*
+ * The library file, which is the list of things the process exists to serve.
+ *
+ * So the cases that matter are the ones where being lenient would produce a gateway that starts and
+ * then cannot serve what the operator configured: a missing file, a typo in the JSON, a library with no
+ * version (the field that picks the adapter), an empty list. Every one of them stops startup and names
+ * the file, because the alternative is discovering it as a 404 per library in production.
+ *
+ * The shipped config/libraries.json is checked here too. It is generated from a live survey, so this
+ * does not assert what is in it — only that what the generator writes is what the reader accepts.
+ */
+package cz.mzk.iiif.gateway;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class LibraryFileTest {
+
+  @TempDir Path directory;
+
+  private Path write(String json) throws IOException {
+    Path file = directory.resolve("libraries.json");
+    Files.writeString(file, json, StandardCharsets.UTF_8);
+    return file;
+  }
+
+  @Test
+  @DisplayName("a library carries its URL, its version and its name by language")
+  void reads() throws IOException {
+    Path file =
+        write(
+            """
+            {"libraries": {
+              "mzk": {"url": "https://api.kramerius.mzk.cz", "version": "7.2.2.1",
+                      "name": {"cs": "Moravská zemská knihovna", "en": "Moravian Library"}}}}
+            """);
+
+    Map<String, Config.StaticLibrary> libraries = LibraryFile.load(file);
+
+    assertThat(libraries).containsOnlyKeys("mzk");
+    assertThat(libraries.get("mzk").url()).isEqualTo("https://api.kramerius.mzk.cz");
+    assertThat(libraries.get("mzk").version()).isEqualTo("7.2.2.1");
+    assertThat(libraries.get("mzk").names())
+        .containsEntry("cs", List.of("Moravská zemská knihovna"))
+        .containsEntry("en", List.of("Moravian Library"));
+  }
+
+  @Test
+  @DisplayName("every declared library is read, not just the first")
+  void readsSeveral() throws IOException {
+    Path file =
+        write(
+            """
+            {"libraries": {
+              "vkol": {"url": "https://kramerius.vkol.cz", "version": "7.2.2"},
+              "mzk":  {"url": "https://api.kramerius.mzk.cz", "version": "7.2.2.1"},
+              "ntk":  {"url": "https://kramerius.techlib.cz", "version": "7.1.7"}}}
+            """);
+
+    assertThat(LibraryFile.load(file)).containsOnlyKeys("vkol", "mzk", "ntk");
+  }
+
+  @Test
+  @DisplayName("keys beginning with _ are notes, not libraries")
+  void ignoresUnderscoreKeys() throws IOException {
+    // The generator writes _excluded next to the list so a missing library explains itself.
+    Path file =
+        write(
+            """
+            {"_comment": ["generated"],
+             "libraries": {"mzk": {"url": "https://a", "version": "7.2.2"}},
+             "_excluded": {"nacr": "TLS: certificate has expired"}}
+            """);
+
+    assertThat(LibraryFile.load(file)).containsOnlyKeys("mzk");
+  }
+
+  @Test
+  @DisplayName("a library with no name has none, rather than one guessed from its code")
+  void nameIsOptional() throws IOException {
+    Path file =
+        write(
+            """
+        {"libraries": {"mzk": {"url": "https://a", "version": "7.2.2"}}}
+        """);
+
+    assertThat(LibraryFile.load(file).get("mzk").names()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("a name that is not language-tagged is refused rather than assumed Czech")
+  void nameNeedsLanguageTags() throws IOException {
+    Path file =
+        write(
+            """
+            {"libraries": {"mzk": {"url": "https://a", "version": "7.2.2",
+                                   "name": "Moravská zemská knihovna"}}}
+            """);
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("language");
+  }
+
+  @Test
+  @DisplayName("a library with no version is refused: the version is what selects the adapter")
+  void versionIsRequired() throws IOException {
+    Path file =
+        write(
+            """
+        {"libraries": {"mzk": {"url": "https://a"}}}
+        """);
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("version");
+  }
+
+  @Test
+  @DisplayName("a library with no URL is refused")
+  void urlIsRequired() throws IOException {
+    Path file =
+        write(
+            """
+        {"libraries": {"mzk": {"version": "7.2.2"}}}
+        """);
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("url");
+  }
+
+  @Test
+  @DisplayName("an empty list is a startup failure, not a gateway that serves nothing")
+  void emptyIsRefused() throws IOException {
+    Path file =
+        write(
+            """
+        {"libraries": {}}
+        """);
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("nothing to serve");
+  }
+
+  @Test
+  @DisplayName("a file with no libraries object says so, rather than serving nothing quietly")
+  void wrongShape() throws IOException {
+    Path file =
+        write(
+            """
+        {"mzk": {"url": "https://a", "version": "7.2.2"}}
+        """);
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("libraries");
+  }
+
+  @Test
+  @DisplayName("malformed JSON names the file, so the operator knows which one to fix")
+  void malformedJson() throws IOException {
+    Path file = write("{\"libraries\": {");
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("libraries.json")
+        .hasMessageContaining("not valid JSON");
+  }
+
+  @Test
+  @DisplayName("a missing file is a startup failure rather than an empty library list")
+  void missingFile() {
+    assertThatThrownBy(() -> LibraryFile.load(directory.resolve("absent.json")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("does not exist");
+  }
+
+  @Test
+  @DisplayName("the generated config/libraries.json is readable by the reader that consumes it")
+  void shippedFileParses() {
+    // Generator and reader are in different languages, so nothing but this keeps them in step.
+    Path shipped = Path.of("..", "..", "config", "libraries.json").toAbsolutePath().normalize();
+    if (!Files.isReadable(shipped)) {
+      return; // Built from a source archive without the repository around it.
+    }
+
+    Map<String, Config.StaticLibrary> libraries = LibraryFile.load(shipped);
+
+    assertThat(libraries).hasSizeGreaterThan(20).containsKey("mzk");
+    assertThat(libraries.values())
+        .allSatisfy(
+            library -> {
+              assertThat(library.url()).startsWith("http");
+              assertThat(library.version()).matches("\\d+\\..*");
+            });
+  }
+}

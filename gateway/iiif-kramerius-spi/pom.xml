@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LEVEL 3 — connecting a source to the builder.
+
+  The contract a host implements to be read from, the orchestration that uses it (which children a shape
+  needs, what a request should pay for page dimensions, which pages a prefetch must visit), and the
+  per-library configuration that goes with talking to something remote.
+
+  A gateway needs all of this because it serves many libraries it does not own, over HTTP, at several
+  Kramerius versions. An application serving its own repository does not, which is why level 2 is usable
+  without ever depending on this module.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-gateway-parent</artifactId>
+    <version>2.0.0</version>
+  </parent>
+  <artifactId>iiif-kramerius-spi</artifactId>
+  <name>IIIF Kramerius SPI</name>
+  <description>Repository contract, orchestration and per-library configuration</description>
+  <dependencies>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-build</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-model</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <!-- Fixtures: the same MZK profile and URL shapes level 2 asserts against. -->
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-build</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+    </dependency>
+  </dependencies>
+</project>

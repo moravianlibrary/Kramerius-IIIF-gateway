@@ -1,0 +1,99 @@
+# The three viewers, pinned and baked, for both the automated check and the human one.
+#
+# WHY AN IMAGE RATHER THAN INSTALLING PER RUN. viewer-check.sh used to npm-install Playwright, esbuild,
+# React and Clover on every invocation and pull Mirador from unpkg in a <script src>. That made every run
+# need the npm registry and a CDN, cost the install and the bundle each time for a result that never
+# changes, and — the part that mattered — pinned only the four direct versions. The transitive graph was
+# resolved fresh each run, so "pinned viewers" was half true: the check could still go red because
+# somebody else released on a Tuesday, which is the exact thing the pinning exists to prevent.
+#
+# WHY IT UNLOCKS UNIVERSAL VIEWER. UV cannot be bundled — its esm chunks resolve assets by relative path
+# at runtime — but it ships a complete dist that works served whole, which is what it documents. Its umd
+# build derives its own base directory from the script tag that loaded it (webpack automatic publicPath),
+# so the tree can be mounted at any path with no configuration. Copying dist/ is the whole integration.
+#
+# WHY ONE IMAGE FOR BOTH USES. The eyeball page and the assertion harness used to load different viewers:
+# tests/viewer/index.html took Mirador 3.3.0 from unpkg and Clover's WEB COMPONENT from jsdelivr, while
+# the check pinned Mirador 3.4.3 and built Clover's REACT component through esbuild. A human was
+# therefore reviewing something the assertions had never run against, and a screenshot in out/ came from
+# a different build than the page beside it. One image, one set of files, both modes.
+#
+#   make viewer-image     build this
+#   make viewer-check     headless, DOM assertions, screenshots
+#   make viewer-open      the same files, served for a person to click through
+FROM mcr.microsoft.com/playwright:v1.49.0-noble
+
+# Pinned deliberately. Bump here, rebuild, and re-run to see what moved — which makes a viewer upgrade a
+# reviewable commit instead of a silent resolution.
+ARG MIRADOR_VERSION=3.4.3
+ARG CLOVER_VERSION=2.14.0
+ARG UV_VERSION=4.0.25
+ARG REACT_VERSION=18.3.1
+ARG ESBUILD_VERSION=0.24.0
+# Must match the base image tag: the image ships the BROWSERS at /ms-playwright but not the node package,
+# so the two are pinned together or the driver and the browser disagree about their protocol.
+ARG PLAYWRIGHT_VERSION=1.49.0
+
+COPY pages/ /build/pages/
+
+# ONE LAYER, AND THE node_modules ARE DISCARDED IN IT. Three RUN steps would commit three layers each
+# holding its own node_modules — some hundreds of megabytes of build input that the finished image never
+# reads. Everything the viewers need is a handful of static files; installing, building and throwing the
+# tree away inside a single step is what keeps this a thin layer on the Playwright base.
+#
+# THREE INSTALLS, THREE DIRECTORIES, because the viewers do not share a dependency graph and pretending
+# they do fails outright: Mirador 3.4.3 peer-depends on react ^16.8.3 while Clover needs React 18, so one
+# npm install of both is an ERESOLVE. That is not a packaging quirk to force past with --legacy-peer-deps
+# — it reflects how each is actually consumed. Mirador and UV are taken as prebuilt UMD bundles with
+# their own React inside, and only Clover is built from source against a React we choose.
+#
+# CLOVER IS BUNDLED, NOT IMPORTED. It is a React application with a couple of dozen dependencies, several
+# of them CJS, and no CDN serves that graph to a browser intact: unbundled it dies on "does not provide an
+# export named 'LazyLoadImage'", and pre-bundled it fetches the manifest, resolves nothing, and sits on
+# "Loading" for ever with no error to read. Neither failure says anything about our manifests, which makes
+# it worse than no check at all. esbuild resolves the graph the way Clover's own build does.
+#
+# NODE_ENV matters: without it React ships its development build and Clover renders warnings into the DOM
+# that a text assertion then has to reason about.
+RUN set -eux; \
+    mkdir -p /viewers /build/mirador /build/uv /build/clover; \
+    \
+    cd /build/mirador && npm install --no-save --silent mirador@${MIRADOR_VERSION}; \
+    cp node_modules/mirador/dist/mirador.min.js /viewers/; \
+    \
+    cd /build/uv && npm install --no-save --silent universalviewer@${UV_VERSION}; \
+    cp -r node_modules/universalviewer/dist /viewers/uv; \
+    \
+    cd /build/clover && npm install --no-save --silent \
+      @samvera/clover-iiif@${CLOVER_VERSION} \
+      react@${REACT_VERSION} react-dom@${REACT_VERSION} \
+      esbuild@${ESBUILD_VERSION}; \
+    # The entry has to sit beside the node_modules it imports: esbuild resolves packages by walking up
+    # from the ENTRY FILE, so an entry in /build/pages would search /build and / and find nothing.
+    cp /build/pages/clover-entry.jsx /build/clover/; \
+    npx esbuild /build/clover/clover-entry.jsx \
+      --bundle --outfile=/viewers/clover.bundle.js \
+      --define:process.env.NODE_ENV='"production"' --log-level=warning; \
+    \
+    cp /build/pages/mirador.html /build/pages/clover.html /viewers/; \
+    \
+    # PLAYWRIGHT LAST, AND IT ENDS UP AT /node_modules. check.mjs is an ES module under /work, and ESM
+    # resolution ignores NODE_PATH — it walks up from the importing file, so /node_modules is the first
+    # place above /work that this and any future harness file will find. It is installed in a
+    # subdirectory and moved because npm refuses to install into / ("Tracker idealTree already exists"),
+    # and it is done AFTER the viewers because a /node_modules present during their installs makes npm
+    # resolve upward into it and fail.
+    mkdir -p /build/harness && cd /build/harness; \
+    npm install --no-save --silent playwright@${PLAYWRIGHT_VERSION}; \
+    mv /build/harness/node_modules /node_modules; \
+    printf '%s\n' \
+      "mirador ${MIRADOR_VERSION}" \
+      "clover ${CLOVER_VERSION}" \
+      "universalviewer ${UV_VERSION}" \
+      > /viewers/VERSIONS; \
+    \
+    rm -rf /build /root/.npm
+
+# The harness itself is mounted at run time rather than baked, because it changes far more often than the
+# viewers do and rebuilding a 2.5 GB image to edit an assertion would be absurd.
+WORKDIR /work

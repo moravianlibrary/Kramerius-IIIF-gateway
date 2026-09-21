@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  THE SERVICE. A IIIF gateway in front of fifty-odd Kramerius instances nobody here operates.
+
+  Three modules, three levels above the library:
+
+    iiif-kramerius-spi        the contract for fetching a document's data, and the assembly that uses it
+    iiif-kramerius-rest       that contract implemented over Kramerius' REST/Solr API, per version floor
+    iiif-gateway              the application — web and worker roles, size store, registry, routes
+
+  THE SPI IS HERE AND NOT IN THE LIBRARY, deliberately. It exists because this gateway must fetch
+  records from somewhere it does not control; an application embedding the library already has its
+  records and implements nothing. Putting the SPI in the library would have made every embedder look
+  at a contract it has no reason to satisfy.
+
+  iiif-kramerius-rest is its own module rather than a package inside iiif-gateway so that the
+  boundary is checked. It was a package, and exactly one import pointed the wrong way — a dev tool
+  reaching for the gateway's catalogue configuration. A module makes that a compile error.
+
+  Depends on the library at ${library.version}, declared in ../pom.xml. One way only: nothing here is
+  visible to the library.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-build-config</artifactId>
+    <version>1</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>iiif-gateway-parent</artifactId>
+  <version>2.0.0</version>
+  <packaging>pom</packaging>
+
+  <name>Kramerius IIIF Gateway</name>
+  <description>IIIF Presentation API v3 for Kramerius digital libraries</description>
+
+  <modules>
+    <module>iiif-kramerius-spi</module>
+    <module>iiif-kramerius-rest</module>
+    <module>iiif-gateway</module>
+  </modules>
+
+  <dependencyManagement>
+    <dependencies>
+      <!--
+        The library, as a version this project chooses rather than one it happens to be built beside.
+        Managed here so no module can pin a different one by accident.
+      -->
+      <dependency>
+        <groupId>cz.mzk.iiif</groupId>
+        <artifactId>iiif-kramerius-model</artifactId>
+        <version>${library.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>cz.mzk.iiif</groupId>
+        <artifactId>iiif-kramerius-model</artifactId>
+        <version>${library.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>cz.mzk.iiif</groupId>
+        <artifactId>iiif-kramerius-build</artifactId>
+        <version>${library.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>cz.mzk.iiif</groupId>
+        <artifactId>iiif-kramerius-build</artifactId>
+        <version>${library.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

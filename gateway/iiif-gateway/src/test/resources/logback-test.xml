@@ -1,0 +1,25 @@
+<!--
+  Test logging. Quiet by default so a failing assertion is the loudest thing on screen.
+
+  ManifestCachingTest starts a real WebServer, so every test in it brings up and tears down Jetty.
+  With no configuration at all logback falls back to root=DEBUG, and that teardown alone wrote 9123
+  of the 9756 lines `make check` produced — against 108 from our own code. The gate's result scrolled
+  off the screen, which is the one thing test output must not do.
+
+  Jetty and Javalin go to WARN rather than off: a port that will not bind still has to say so. Ours
+  stay at INFO, so a failing test keeps the context around it.
+-->
+<configuration>
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{25} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="org.eclipse.jetty" level="WARN"/>
+  <logger name="io.javalin" level="WARN"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>

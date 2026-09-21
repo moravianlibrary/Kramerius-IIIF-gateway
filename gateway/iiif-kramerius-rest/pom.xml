@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The SPI implemented over Kramerius' REST/Solr API, from outside.
+
+  One module rather than one per Kramerius version: the adapters are sibling packages — v50, v70, v714
+  — sharing the HTTP, Solr and info.json machinery in the parent package. Splitting a package later is
+  cheaper than carrying three extra POMs now, and the version boundaries are enforced by
+  AdapterRegistry rather than by the build.
+
+  It was a package inside iiif-gateway until the projects were split. Making it a module is what makes
+  "an adapter never reaches into the application" a compile error instead of a rule: exactly one import
+  had already broken it — a dev tool wanting the gateway's catalogue configuration.
+
+  Nothing here depends on Javalin, Postgres or Hikari. If it ever does, the dependency is in the wrong
+  module.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cz.mzk.iiif</groupId>
+    <artifactId>iiif-gateway-parent</artifactId>
+    <version>2.0.0</version>
+  </parent>
+
+  <artifactId>iiif-kramerius-rest</artifactId>
+
+  <name>IIIF Kramerius REST Adapter</name>
+  <description>DocumentSource, ContentLocator and LibraryProfile over Kramerius' REST API</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-spi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-build</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-model</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <!-- The shared fakes and fixtures, which the adapter tests build records against. -->
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-build</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>cz.mzk.iiif</groupId>
+      <artifactId>iiif-kramerius-model</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

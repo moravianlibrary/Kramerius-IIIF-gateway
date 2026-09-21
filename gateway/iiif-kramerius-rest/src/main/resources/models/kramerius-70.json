@@ -1,0 +1,74 @@
+{
+  "_comment": [
+    "Which manifest shape each Kramerius document model produces.",
+    "",
+    "This is data, not logic: adding a model Kramerius has introduced is an entry here, and the gateway",
+    "reads a configured directory over these defaults at startup, so it needs no rebuild.",
+    "",
+    "`shape` must name one of the DocumentShape constants — PAGES, SOUND_RECORDING, MEMBERS,",
+    "COLLECTION_MEMBERS. That set is deliberately NOT",
+    "configurable: the builder switches on it exhaustively, so a shape only exists if there is code that",
+    "knows how to build it. An unknown shape here fails at startup rather than at request time.",
+    "",
+    "Flags:",
+    "  children          which children a MEMBERS shape collects; required for it, unused otherwise.",
+    "  fostersPages      pages belong to an ancestor, not to this model, so they are found through",
+    "                    foster_parents.pids rather than own_parent.pid. True for article, internalpart",
+    "                    and picture — measured at MZK, see docs/BEHAVIOUR.md.",
+    "  hasAncestors      worth building a partOf block for. Whether the parent is actually linkable is",
+    "                    decided from the parent's own model, not from a list here.",
+    "  excludesOwnModel  a member of the same model is skipped. Kramerius indexes a convolute as its own",
+    "                    child, which would otherwise make it a member of itself.",
+    "  promoteTo         when children of `promoteWhen` exist, this model becomes that one instead. How a",
+    "                    monograph that turns out to have volumes becomes a multi-volume monograph."
+  ],
+
+  "models": {
+    "monograph": {
+      "shape": "PAGES",
+      "promoteTo": "monographcollection",
+      "promoteWhen": "MONOGRAPH_UNITS"
+    },
+    "monographcollection": { "shape": "MEMBERS", "children": "MONOGRAPH_UNITS" },
+    "monographunit": { "shape": "PAGES", "hasAncestors": true },
+
+    "manuscript": { "shape": "PAGES" },
+    "map": { "shape": "PAGES" },
+    "graphic": { "shape": "PAGES" },
+    "sheetmusic": { "shape": "PAGES" },
+    "oldprintsheetmusic": { "shape": "PAGES" },
+    "archive": { "shape": "PAGES" },
+
+    "periodical": { "shape": "MEMBERS", "children": "PERIODICAL_VOLUMES" },
+    "periodicalvolume": {
+      "shape": "MEMBERS",
+      "children": "PERIODICAL_ISSUES",
+      "hasAncestors": true
+    },
+    "periodicalitem": { "shape": "PAGES", "hasAncestors": true },
+    "supplement": { "shape": "PAGES", "hasAncestors": true },
+
+    "article": { "shape": "PAGES", "hasAncestors": true, "fostersPages": true },
+    "internalpart": { "shape": "PAGES", "hasAncestors": true, "fostersPages": true },
+    "picture": { "shape": "PAGES", "hasAncestors": true, "fostersPages": true },
+
+    "soundrecording": { "shape": "SOUND_RECORDING" },
+
+    "convolute": {
+      "shape": "MEMBERS",
+      "children": "CONVOLUTE_PARTS",
+      "excludesOwnModel": true
+    },
+    "collection": { "shape": "COLLECTION_MEMBERS" }
+  },
+
+  "_componentsComment": [
+    "Models that are only ever parts of a document, never a document in their own right. Requesting one",
+    "is `unsupported`, not `not found`. soundunit and track have zero pages at MZK, so there is genuinely",
+    "nothing to build for them."
+  ],
+  "components": ["page", "track", "soundunit"],
+
+  "_pageModelComment": "Which of the components is a page. Used when a page turns up as a collection member.",
+  "pageModel": "page"
+}

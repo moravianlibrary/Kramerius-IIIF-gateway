@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Mirador, loaded from the image rather than from unpkg.
+
+  Deliberately minimal: this is the harness page, driven by Playwright and by a person through
+  index.html. The manifest comes in as ?manifest=<url>.
+
+  window.miradorInstance is the assertion handle — canvas counts come from the viewer's own store,
+  because the thumbnail strip is virtualised and counting DOM nodes would count a window, not a
+  document.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mirador</title>
+    <script src="/mirador.min.js"></script>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; }
+      #viewer { width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="viewer"></div>
+    <script>
+      const params = new URLSearchParams(location.search);
+      window.miradorInstance = Mirador.viewer({
+        id: 'viewer',
+        windows: [{ manifestId: params.get('manifest') }],
+        window: { allowClose: false, sideBarOpenByDefault: true },
+        // Explicit, so which language a label renders in is a result rather than a guess about the
+        // browser's locale. Our maps carry cs and en for anything we author; anything else exercises
+        // the client's own fallback.
+        language: params.get('lang') ?? 'en',
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Per-library catalogue links, keyed by the registry's library code.",
+    "",
+    "url:   the record URL, with {id} where the record identifier goes.",
+    "rules: ordered. Each pattern is matched against the whole indexed system number and must",
+    "       capture the record number in group 1; the prefix is put in front of it verbatim, so it",
+    "       carries its own separator. First match wins; nothing matching means no link at all,",
+    "       because a wrong catalogue link looks to a reader like a record we found.",
+    "",
+    "Only MZK is here because MZK is the only mapping anyone has verified. Add your own with",
+    "IIIF_CATALOGUES_DIR — one <code>.json file per library, same shape minus the code key — rather",
+    "than editing this file, which a release will overwrite.",
+    "",
+    "The nine-digit anchor is deliberate and not incidental: an Aleph base ends in digits, so a",
+    "greedy trailing-digit match reads mzk03000706629 as prefix mzk + 03000706629 and 404s. Nine",
+    "digits is MZK's convention, which is exactly why it lives in configuration and not in code."
+  ],
+  "catalogues": {
+    "mzk": {
+      "url": "https://vufind.mzk.cz/Record/{id}",
+      "rules": [
+        { "pattern": "^mzk01-?(\\d{9})$", "prefix": "MZK01-" },
+        { "pattern": "^mzk03-?(\\d{9})$", "prefix": "MZK03-" },
+        { "pattern": "^(\\d{9})$", "prefix": "MZK01-" }
+      ]
+    }
+  }
+}

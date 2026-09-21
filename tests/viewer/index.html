@@ -1,0 +1,134 @@
+<!doctype html>
+<!--
+  The eyeball check: manifests from a running gateway, in the viewers people actually use.
+
+  EVERY VIEWER IS AN IFRAME ONTO THE HARNESS PAGE THE ASSERTIONS DRIVE. That is the point of this file's
+  rewrite. It used to embed the viewers itself — Mirador 3.3.0 from unpkg, Clover's WEB component from
+  jsdelivr — while scripts/viewer-check.sh pinned Mirador 3.4.3 and bundled Clover's REACT component. So a
+  person reviewing a manifest was looking at different software from the one that had asserted on it, and
+  a screenshot in out/ came from a third build again. Now /mirador.html, /clover.html and /uv/uv.html are
+  the same files in both modes, served from the same image.
+
+  Universal Viewer is here at all because it is served rather than imported: it resolves its own chunks
+  relative to the script tag that loaded it, so the shipped dist works whole and nothing else does.
+
+  Served by serve.mjs inside that image — `make viewer-open`. The gateway must be running.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>IIIF gateway — viewer review</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { color-scheme: light dark; --rule: #ccc; --ink: #16181d; --paper: #fbfbfc; --accent: #1a6480; }
+  @media (prefers-color-scheme: dark) {
+    :root { --rule: #333; --ink: #e7e9ee; --paper: #121419; --accent: #6ab6d4; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; display: flex; flex-direction: column;
+         font: 15px/1.5 system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+  header { padding: .8rem 1rem; border-bottom: 1px solid var(--rule);
+           display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; }
+  h1 { font-size: 1rem; margin: 0 1rem 0 0; font-weight: 600; }
+  label { font-size: .85rem; }
+  select, button { font: inherit; padding: .3rem .5rem; }
+  button { cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #url { font: 12px/1.4 ui-monospace, monospace; opacity: .7; flex-basis: 100%; word-break: break-all; }
+  #stage { flex: 1; min-height: 0; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>IIIF gateway — viewer review</h1>
+
+  <label>Document
+    <select id="doc">
+      <option value="mzk/uuid:7456c2c0-6aa4-11e2-8aec-005056827e52">monograph, 58 pages — real dimensions</option>
+      <option value="mzk/uuid:71d66fe0-d986-11e2-9923-005056827e52">monograph, 202 pages — restricted, thumbnail-derived shapes</option>
+      <option value="mzk/uuid:f40754db-a439-4321-9441-3c008a4200e6">sound recording — 20 canvases, 2 ranges</option>
+      <option value="mzk/uuid:022321ca-b665-46aa-8ee1-88adb67f73ea">article — refused by the deployed gateway</option>
+      <option value="mzk/uuid:a5af77e0-92c8-11f0-9940-005056827e51">map, 248 pages</option>
+      <option value="mzk/uuid:6c17b0cf-8c49-48d3-a9e9-b64f154c3f23">collection — 35 members</option>
+      <option value="lmda/uuid:ffa2d1e3-2707-4426-b86d-36ebbf33d02c">Kramerius 5 — image service, real dimensions</option>
+      <option value="nkp/uuid:ae6198e0-f132-11e7-a97b-005056827e51">Kramerius 5 — no image service, flat stream</option>
+    </select>
+  </label>
+
+  <label>Gateway
+    <select id="host">
+      <option value="http://localhost:18080">rewrite — localhost:18080</option>
+      <option value="http://localhost:8080">rewrite — localhost:8080</option>
+      <option value="https://iiif.digitalniknihovna.cz">deployed — iiif.digitalniknihovna.cz</option>
+    </select>
+  </label>
+
+  <label>Viewer language
+    <select id="lang">
+      <option value="cs">cs</option>
+      <option value="en" selected>en</option>
+      <option value="pl">pl (neither — tests fallback)</option>
+    </select>
+  </label>
+
+  <span>
+    <button id="tab-mirador" aria-pressed="true">Mirador</button>
+    <button id="tab-clover" aria-pressed="false">Clover</button>
+    <button id="tab-uv" aria-pressed="false">Universal Viewer</button>
+    <button id="raw">Raw JSON</button>
+  </span>
+
+  <span id="url"></span>
+</header>
+
+<div id="stage"><iframe id="frame" title="viewer"></iframe></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const manifest = () => `${$('host').value}/${$('doc').value}`;
+
+  // The same three entry points check.mjs navigates to, and the same per-viewer difference: Mirador and
+  // Clover read ?manifest=, Universal Viewer reads its own hash through UV.IIIFURLAdapter.
+  //
+  // UV takes no language here. Ours is passed as a viewer option, and UV configures locales through its
+  // config file rather than a URL parameter — so rather than guess at a parameter that may not exist,
+  // the control simply does not claim to affect it.
+  const VIEWERS = {
+    mirador: (m, lang) => `/mirador.html?manifest=${encodeURIComponent(m)}&lang=${lang}`,
+    clover: (m, lang) => `/clover.html?manifest=${encodeURIComponent(m)}&lang=${lang}`,
+    uv: (m) => `/uv/uv.html#?manifest=${encodeURIComponent(m)}`,
+  };
+
+  let current = 'mirador';
+
+  function show(name) {
+    current = name;
+    for (const other of Object.keys(VIEWERS)) {
+      $(`tab-${other}`).setAttribute('aria-pressed', String(other === name));
+    }
+    refresh();
+  }
+
+  function refresh() {
+    const url = manifest();
+    $('url').textContent = url;
+    // Reassigning src rather than reloading: a viewer holds state per instance, and the point of
+    // switching documents is to see the new one built from scratch.
+    $('frame').src = VIEWERS[current](url, $('lang').value);
+  }
+
+  for (const name of Object.keys(VIEWERS)) {
+    $(`tab-${name}`).onclick = () => show(name);
+  }
+  $('raw').onclick = () => window.open(manifest(), '_blank');
+  $('doc').onchange = refresh;
+  $('lang').onchange = refresh;
+  $('host').onchange = refresh;
+
+  refresh();
+</script>
+</body>
+</html>

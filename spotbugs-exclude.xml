@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SpotBugs exclusions. Keep this file short and every entry justified — an exclusion nobody can defend
+  is how static analysis stops finding anything.
+-->
+<FindBugsFilter>
+
+  <!--
+    EI_EXPOSE_REP / EI_EXPOSE_REP2 on the data records.
+
+    These packages are records that hold Map and List components and are serialised to JSON immediately.
+    Every value put into them is already immutable — Map.of, List.of, List.copyOf,
+    Collections.unmodifiableMap — but SpotBugs reasons about the *declared* type, so it reports each of
+    the 60 accessors and constructors as exposing internal state.
+
+    Copying defensively in each one would add sixty pieces of ceremony that copy an immutable collection
+    into another immutable collection. The invariant is enforced where the values are created
+    (LanguageMap, DocumentRecord's compact constructor) rather than at every boundary they cross.
+
+    Scoped to these packages deliberately: anywhere that holds genuinely mutable state, this check
+    should still fire.
+  -->
+  <Match>
+    <Or>
+      <Package name="cz.mzk.iiif.presentation"/>
+      <Package name="cz.mzk.iiif.spi"/>
+      <Package name="cz.mzk.iiif.kramerius"/>
+    </Or>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+
+  <!--
+    cz.mzk.iiif.document is deliberately narrower: EI_EXPOSE_REP only, not EI_EXPOSE_REP2.
+
+    DocumentRecord is filled by adapters from live Solr responses, so the maps handed to it really are
+    caller-owned and mutable. It copies them — LanguageMap.immutable, an unmodifiable LinkedHashMap that
+    keeps insertion order so the serialised bytes stay stable — and that fixed five of the eight reports
+    honestly. The three that remain are accessors returning those already-immutable maps, which SpotBugs
+    cannot see because it reasons about the declared Map type.
+
+    Leaving EI_EXPOSE_REP2 active here is the point: it is what would catch the next record that takes a
+    collection and forgets to copy it.
+  -->
+  <Match>
+    <Package name="cz.mzk.iiif.document"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+
+  <!--
+    cz.mzk.iiif.adapter, on the same terms and for the same reason.
+
+    Two records here carry a slice of a Solr walk — the rows, and the cursor to carry on from. Both copy
+    their list in a compact constructor, which is what fixed the EI_EXPOSE_REP2 reports honestly; what
+    remains is the accessor handing back a List whose immutability SpotBugs cannot see.
+
+    EI_EXPOSE_REP2 stays active for this package deliberately. It is the direction that matters — a
+    record taking a caller-owned mutable collection and keeping it — and it is what will catch the next
+    one that forgets to copy.
+  -->
+  <Match>
+    <Package name="cz.mzk.iiif.adapter"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+
+  <!--
+    Injected collaborators, not data.
+
+    A SizeStore is a service handed to a component at construction — a database-backed one in
+    production, a fake in tests. "Defensively copying" it is not a thing that can be done, and holding
+    the caller's instance is the entire point of passing it. SpotBugs reports every such field because
+    the declared type is an interface it cannot prove immutable.
+
+    Scoped to this one type rather than to the packages, so an ordinary mutable field slipping into the
+    same class is still reported.
+  -->
+  <Match>
+    <Field type="cz.mzk.iiif.gateway.store.SizeStore"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+
+</FindBugsFilter>

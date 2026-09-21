@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SHARED BUILD CONFIGURATION. Not a reactor: it has no <modules>.
+
+  This repository holds TWO independently versioned projects, each with its own reactor, VERSION and
+  CHANGELOG:
+
+    iiif-kramerius/   the library  — model, build, embedded.  Version 1.x.
+    gateway/          the service  — spi, rest, gateway.      Version 2.x.
+
+  They move for different reasons. The library's number is a compatibility promise to whoever embeds
+  it — Kramerius itself, in the case this was designed for; the gateway's number says which build is
+  deployed. Sharing one counter meant a deployment bumped a published artifact for no reason.
+
+  Both inherit this POM for the things that must not drift between them: compiler flags, the
+  formatter, SpotBugs, dependency versions, the test stack. Everything else is per project. The
+  dependency direction is one way — gateway modules depend on library artifacts, never the reverse,
+  and with the projects separated the build enforces it rather than a convention doing so.
+
+  Module-level reasoning is in docs/DESIGN.md.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>cz.mzk.iiif</groupId>
+  <artifactId>iiif-build-config</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+
+  <name>IIIF Kramerius Build Configuration</name>
+  <description>Compiler, formatter, analysis and dependency versions shared by both projects</description>
+
+  <properties>
+    <!--
+      The library version the gateway builds against. It lives here rather than in gateway/pom.xml so
+      that one edit moves both the library's own reactor and every gateway module that consumes it.
+    -->
+    <library.version>1.0.0</library.version>
+
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+
+    <jackson.version>2.18.2</jackson.version>
+    <caffeine.version>3.1.8</caffeine.version>
+    <slf4j.version>2.0.16</slf4j.version>
+    <logback.version>1.5.16</logback.version>
+
+    <!-- Only iiif-gateway carries these. -->
+    <javalin.version>6.4.0</javalin.version>
+    <postgres.version>42.7.5</postgres.version>
+    <hikari.version>6.2.1</hikari.version>
+
+    <junit.version>5.11.4</junit.version>
+    <assertj.version>3.27.2</assertj.version>
+    <!-- Validates generated manifests against the vendored IIIF v3 schema, inside `make test`. -->
+    <jsonschema.version>1.5.5</jsonschema.version>
+
+    <spotless.version>2.44.2</spotless.version>
+    <gjf.version>1.25.2</gjf.version>
+    <spotbugs.version>4.8.6.6</spotbugs.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>${caffeine.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.javalin</groupId>
+        <artifactId>javalin</artifactId>
+        <version>${javalin.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <version>${postgres.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.zaxxer</groupId>
+        <artifactId>HikariCP</artifactId>
+        <version>${hikari.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>${assertj.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.networknt</groupId>
+        <artifactId>json-schema-validator</artifactId>
+        <version>${jsonschema.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+    </dependency>
+    <!--
+      A logging provider for tests only. The library itself depends on slf4j-api and nothing else —
+      choosing the backend is the host application's business, not a library's.
+    -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.5.2</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>3.5.2</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.6.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.4.2</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!-- typecheck: warnings are errors. See the `typecheck` target in the Makefile. -->
+          <compilerArgs>
+            <arg>-Xlint:all</arg>
+            <arg>-Werror</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless.version}</version>
+        <configuration>
+          <java>
+            <!--
+              google-java-format, not palantir-java-format: the house rule is 100 columns and
+              google-java-format defaults to exactly that, while palantir is hard-wired to 120.
+            -->
+            <googleJavaFormat>
+              <version>${gjf.version}</version>
+              <style>GOOGLE</style>
+            </googleJavaFormat>
+            <removeUnusedImports/>
+            <importOrder>
+              <order>java,javax,,cz.mzk</order>
+            </importOrder>
+          </java>
+          <!--
+            No <pom> block on purpose: sortPom reflows the <project> attributes onto one 200-column
+            line, which breaks the 100-column rule this config exists to enforce. POM element order
+            is not worth a formatter fighting the house style.
+          -->
+          <markdown>
+            <includes>
+              <include>*.md</include>
+              <include>docs/**/*.md</include>
+            </includes>
+            <endWithNewline/>
+          </markdown>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${spotbugs.version}</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Medium</threshold>
+          <includeTests>false</includeTests>
+          <excludeFilterFile>${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml</excludeFilterFile>
+        </configuration>
+        <executions>
+          <execution>
+            <!--
+              Bound to a phase rather than invoked as a standalone goal: `mvn spotbugs:check` on its
+              own cannot resolve sibling modules, because inter-module dependencies are only served
+              from the reactor during a lifecycle build. `make lint` therefore runs `verify`.
+            -->
+            <id>spotbugs</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <!--
+      Integration tests: everything that needs a real Postgres.
+
+      Off by default and never part of `make check`, because the gate must run with nothing but a JDK.
+      `make db-up && make test-integration` is the way in; without IIIF_TEST_DB_URL the tests skip
+      themselves rather than fail, so a developer who forgets db-up gets a skip and not a red build.
+
+      Named *IT and run by failsafe rather than surefire so they cannot be pulled into `make test` by
+      accident — the naming convention is the isolation.
+    -->
+    <profile>
+      <id>integration</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

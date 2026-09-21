@@ -1,2 +1,28 @@
-/manifest.json
+# Java / Maven
+target/
+*.class
+*.war
+*.jar
+
+# Config
+.env
+
+# Legacy Node prototype
 /node_modules
+/manifest.json
+
+# Viewer-check output: screenshots and a JSON report, rewritten every run. Deliberately NOT baselines
+# — the harness asserts on the DOM precisely so a viewer upgrade cannot fail the check by changing
+# pixels, so committing images would create the baseline that design avoids.
+tests/viewer/out/
+
+# Working notes, deliberately not published: a list of what is unfinished and a log of audits against
+# it are internal state, not part of the contract this repository offers. What is DECIDED is in
+# docs/DECISIONS.md and is committed; what is merely not done yet is not a promise to anyone.
+/docs/TODO.md
+/docs/AUDIT.md
+
+# Editors
+.idea/
+*.iml
+.vscode/
