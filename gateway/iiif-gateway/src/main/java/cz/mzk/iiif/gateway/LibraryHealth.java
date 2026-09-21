@@ -174,22 +174,32 @@ public final class LibraryHealth implements AutoCloseable {
           code, State.DOWN, entry.get().version(), Optional.empty(), "registry says down");
     }
 
-    String rawVersion = declared != null ? declared.version() : entry.get().version().orElse("");
+    String declaredVersion =
+        declared != null ? declared.version() : entry.get().version().orElse("");
     String url = declared != null ? declared.url() : entry.get().url();
 
-    Optional<KrameriusAdapter> adapter =
-        Version.parse(rawVersion).flatMap(libraries.adapters()::forVersion);
+    // Asked of the instance, exactly as Libraries.build does, and for two reasons. The obvious one
+    // is that /libraries must report the adapter a request would actually get rather than a second
+    // guess at it. The load-bearing one is forgetIfUpgraded below: it compares the RESOLVED
+    // library's version against this one, so reading the registry here while build() reads the
+    // instance would make every sweep see a phantom upgrade and discard a perfectly good library —
+    // MZK's file says 7.2.2.1 and MZK says 7.2.2.3.
+    //
+    // It is also what makes upgrade detection work at all. Registry mode re-reads the registry on a
+    // schedule, which only helps if the registry is current, and for `knav` it is not.
+    Optional<Version> version = libraries.effectiveVersion(code, url, declaredVersion);
+    Optional<KrameriusAdapter> adapter = version.flatMap(libraries.adapters()::forVersion);
     if (adapter.isEmpty()) {
       return status(
           code,
           State.UNSUPPORTED,
-          Optional.of(rawVersion),
+          Optional.of(version.map(Version::raw).orElse(declaredVersion)),
           Optional.empty(),
           "below " + libraries.adapters().lowestSupported());
     }
 
-    forgetIfUpgraded(code, rawVersion);
-    return probe(code, url, rawVersion, adapter.get());
+    forgetIfUpgraded(code, version.get().raw());
+    return probe(code, url, version.get().raw(), adapter.get());
   }
 
   /**

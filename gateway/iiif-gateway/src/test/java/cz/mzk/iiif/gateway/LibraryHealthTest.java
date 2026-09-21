@@ -1,14 +1,19 @@
 /*
- * What the checker decides without asking anybody.
+ * What the checker decides, and how little it asks to decide it.
  *
- * That distinction is the whole design: the registry's `alive` flag and the version string settle most
- * libraries with no I/O at all, and only what survives that gets one request. A sweep that resolved every
- * library instead would be ~150 upstream calls to institutions that did not ask to be woken up, every
- * thirty minutes, forever — which is why /health and /libraries were written to resolve nothing, and why
- * the checker must not quietly undo that.
+ * A sweep that RESOLVED every library would be ~150 upstream calls to institutions that did not ask to be
+ * woken up, every thirty minutes, forever — resolution probes the Image API over five pages, fetches the
+ * licence config and detects the Solr topology. That is why /health and /libraries resolve nothing, and
+ * the checker must not quietly undo it.
  *
- * The declared-library path is used here because it needs no registry and no network. The probe itself is
- * one Solr query and is covered by `make smoke` against real instances, where it means something.
+ * What it does ask is bounded and deliberate: /info for the version, then one Solr query. The /info call
+ * is not optional and not an optimisation target — the version selects the adapter, and the registry is
+ * measurably wrong about it for three libraries including one across the K5/K7 boundary. It is also the
+ * only thing that detects an upgrade, since re-reading a stale registry on a schedule just re-reads a
+ * stale registry. A K7 library costs one /info request because that path is tried first; K5 costs two.
+ *
+ * The declared-library path is used here because it needs no registry. The Solr probe is covered by
+ * `make smoke` against real instances, where it means something.
  */
 package cz.mzk.iiif.gateway;
 
@@ -41,11 +46,12 @@ class LibraryHealthTest {
   }
 
   @Test
-  @DisplayName("a version below every adapter floor is unsupported without a single request")
-  void unsupportedVersionIsDecidedOffline() {
-    // The one K4 instance in the registry. Asking it anything would be pointless: no adapter can
-    // read
-    // it, so the answer cannot change what we do.
+  @DisplayName("a version below every adapter floor is unsupported, and is never Solr-probed")
+  void unsupportedVersionIsDecidedWithoutProbing() {
+    // The one K4 instance in the registry. It IS asked for its /info — the declared version is the
+    // thing we have learned not to trust, and refusing a working library on the strength of a stale
+    // registry entry is the failure this whole path exists to avoid. What it is not asked for is
+    // anything expensive: no Solr query, no Image API probe, no licence config.
     LibraryHealth health = checker("old=http://127.0.0.1:1|4.6.2|cs:Stará knihovna", "30");
 
     health.sweep();

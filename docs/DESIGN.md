@@ -251,14 +251,40 @@ answered both `200`. **A failure at an upstream Kramerius is a `502`, `503` or `
 full table is in [BEHAVIOUR.md](BEHAVIOUR.md#errors). The kind travels as a field on a typed exception
 rather than in its message, so the web layer never decides a status code by matching on text.
 
-Library resolution is config: `IIIF_REGISTRY_URL` set → registry mode, which also selects the adapter from the
-registry's `version`; `IIIF_LIBRARIES=code=url|version` or `IIIF_LIBRARIES_FILE=…json` → static mode. Same
-routes either way, and the two static forms produce the same record, so nothing below `Config` knows which was
-used. The file exists because one environment variable stops scaling at about five libraries — fifty of them
-is four kilobytes on one line with nowhere to put a comment. Static mode's cost is the pinned `version`: the
-health checker re-reads it from the registry every `IIIF_LIBRARY_CHECK_MINUTES` and drops a library that has
-been upgraded so the next request rebuilds it on the right adapter; a file has nothing doing that, so an
-upgraded library keeps being read by the old adapter until `make libraries` is run again.
+Library resolution is config: `IIIF_REGISTRY_URL` set → registry mode; `IIIF_LIBRARIES=code=url|version` or
+`IIIF_LIBRARIES_FILE=…json` → static mode. Same routes either way, and the two static forms produce the same
+record, so nothing below `Config` knows which was used. The file exists because one environment variable stops
+scaling at about five libraries — fifty of them is four kilobytes on one line with nowhere to put a comment.
+
+**The version is asked of the instance, not taken from either.** `GET /search/api/client/v7.0/info` on
+Kramerius 7 and `/search/api/v5.0/info` on Kramerius 5, both carrying a `version`; the paths discriminate
+cleanly, since a K7 404s the v5 path and a K5 404s the v7 path, so which one answers is itself evidence of
+the family. Whatever was declared is the fallback for an instance that does not answer, and a disagreement
+is logged and overruled.
+
+That is not caution, it is a measurement. Asked of all 56 registry libraries, 48 answered and **three
+disagreed with the registry**:
+
+| Library | Registry | Actually | Matters? |
+|---|---|---|---|
+| `svkos` | 5.7.3 | **7.1.3** | **yes — a different adapter entirely** |
+| `snk` | 7.0.23 | 7.0.39 | no, same floor |
+| `knav` | 7.2.2.1 | 7.2.2.3 | no, same floor |
+
+`svkos` is the case the design has to survive: picking `Kramerius50` for a Kramerius 7 instance means the
+wrong Solr schema, the wrong field names, the wrong API paths, and a manifest that cannot be built. It does
+not happen today only because the registry also flags `svkos` as dead and it is refused earlier — the same
+registry that has the version wrong is what decides that, which is luck rather than design.
+
+This removes static mode's one real cost. The file used to pin a version that went stale, and an upgraded
+library kept being read by the old adapter until `make libraries` was run again; now a library that upgrades
+is followed on the next resolution, in either mode. It also makes the health sweep's upgrade detection mean
+something — re-reading a stale registry on a schedule just re-reads a stale registry.
+
+The price is one extra request per library per sweep, and the sweep is bounded for the same reason it always
+was: it asks `/info` and one Solr query, never a full resolution. K7 costs one request because that path is
+tried first; K5 costs two. The eight libraries that answer no `/info` cost two failed connections each, and
+every one of them is also unreachable at the root, so nothing is being woken up that was otherwise asleep.
 
 ### Why an admin port and not a bearer token
 

@@ -408,3 +408,36 @@ in `DESIGN.md` where there is any.
   TOAST already does for free.
 - **Artifact version split** — done: the library and the application are counted separately
   (`VERSION_CORE` and `VERSION`). See `DESIGN.md`.
+
+## The Kramerius version is asked of the instance, not read from the registry
+
+**Decided** 2026-09-21. The version selects the adapter, and it arrived second-hand — from the shared
+registry, or from a version somebody typed into `IIIF_LIBRARIES`. Both are now a fallback; `/info` on
+the instance wins.
+
+**Against**: keeping the registry as the source and regenerating `config/libraries.json` after each
+Kramerius release round, which is what the file's own header used to instruct. Also against: trusting
+the registry but *verifying* asynchronously, which is the same thing with a delay.
+
+**What settled it** was asking all 56 registry libraries directly. 48 answered `/info`; three disagreed
+with the registry, and one disagreed across the adapter boundary — `svkos` is recorded as 5.7.3 and runs
+7.1.3. The other two (`snk` 7.0.23→7.0.39, `knav` 7.2.2.1→7.2.2.3) land on the same adapter floor and
+change nothing, which is the point: the registry is not *usually* wrong, it is wrong rarely and
+catastrophically, and there is no way to tell which from the registry.
+
+`svkos` is not currently mis-served, because the registry also flags it dead and it is refused before
+any of this runs. That is not reassuring — the same source that has the version wrong is what decides
+it is dead, and its `alive` flag is demonstrably wrong too, since the instance answers.
+
+**What it costs**: one extra request per library per health sweep (two for K5, since the K7 path is
+tried first). The eight libraries that answer no `/info` are all unreachable at the root as well, so
+this wakes nothing that was otherwise reachable. The declared version still stands for them.
+
+**What it removes**: static mode's documented weakness. The file used to pin a version that went stale
+and an upgraded library kept being read by the old adapter until `make libraries` ran again. Now the
+file pins a url and a name, which change on the order of years.
+
+**Still open, deliberately**: the registry's `alive: false` is still honoured, and `svkos` is still not
+served even though it answers. Believing the instance about its version while believing the registry
+about whether it exists is not obviously coherent — but changing it would add libraries to what a
+deployment serves, which is a bigger decision than this one.

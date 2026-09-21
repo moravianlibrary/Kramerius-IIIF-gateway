@@ -397,6 +397,11 @@ public final class WebServer implements AutoCloseable {
       Libraries.Library library = resolved.get(code);
       if (library != null) {
         KrameriusAdapter adapter = library.adapter();
+        // Overwrites the checker's value on purpose: this is the version the instance reported when
+        // the library was built, and it is what actually chose the adapter. The declared version —
+        // registry or config file — is not shown anywhere, because reporting a number that did not
+        // decide anything is how an operator ends up debugging the wrong one.
+        row.put("version", library.version().toString());
         row.put("adapter", adapter.name());
         row.put("testedUpTo", adapter.testedUpTo().toString());
         row.put("imageApiVersion", library.repository().urls().imageApiVersion());

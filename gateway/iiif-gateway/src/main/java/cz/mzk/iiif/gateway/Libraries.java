@@ -25,6 +25,7 @@ import cz.mzk.iiif.adapter.AdapterRegistry;
 import cz.mzk.iiif.adapter.DocumentModels;
 import cz.mzk.iiif.adapter.InfoJsonSizes;
 import cz.mzk.iiif.adapter.KrameriusAdapter;
+import cz.mzk.iiif.adapter.KrameriusInfo;
 import cz.mzk.iiif.adapter.KrameriusRepository;
 import cz.mzk.iiif.adapter.SolrClient;
 import cz.mzk.iiif.adapter.Version;
@@ -158,7 +159,7 @@ public final class Libraries {
   private Resolution build(
       String code, String url, String rawVersion, Optional<RegistryEntry> entry) {
 
-    Optional<Version> version = Version.parse(rawVersion);
+    Optional<Version> version = effectiveVersion(code, url, rawVersion);
     if (version.isEmpty()) {
       return new Resolution.Unsupported(code, rawVersion, adapters.lowestSupported().toString());
     }
@@ -262,6 +263,43 @@ public final class Libraries {
     }
     resolved.put(code, library);
     return new Resolution.Ready(library);
+  }
+
+  /**
+   * What version this instance actually runs, asked of the instance.
+   *
+   * <p>The declared version — from the registry or from configuration — is a fallback, not the
+   * source of truth. It has to be, because the version selects the adapter and second-hand versions
+   * measurably go stale: of the 48 registry libraries that answered /info, three disagreed with the
+   * registry, and for `svkos` the registry was a whole major version out. See {@link
+   * KrameriusInfo}.
+   *
+   * <p>A disagreement is logged at WARN rather than swallowed. It is not an error — the instance is
+   * right and we adapt — but it means somebody's configuration or the registry needs regenerating,
+   * and that is worth one line in a log rather than being silently correct forever.
+   *
+   * <p>When the instance does not answer, the declared version stands. An instance that answers
+   * nothing at all is unservable for reasons this method is not equipped to report.
+   */
+  public Optional<Version> effectiveVersion(String code, String url, String rawVersion) {
+    Optional<Version> declared = Version.parse(rawVersion);
+    Optional<Version> reported = KrameriusInfo.version(http, url, config.readTimeout());
+
+    if (reported.isEmpty()) {
+      if (declared.isPresent()) {
+        LOG.debug("{} did not report a version; using the declared {}", code, declared.get());
+      }
+      return declared;
+    }
+    if (declared.isPresent() && !declared.get().raw().equals(reported.get().raw())) {
+      LOG.warn(
+          "{} reports {} but was declared {} — trusting the instance."
+              + " Regenerate the library file, or let the registry catch up.",
+          code,
+          reported.get().raw(),
+          declared.get().raw());
+    }
+    return reported;
   }
 
   /** Everything a manifest says about the institution, from the registry where there is one. */

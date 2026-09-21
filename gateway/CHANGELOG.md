@@ -13,6 +13,20 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ## [Unreleased]
 
 ### Fixed
+- **Every MZK manifest declared the wrong image service.** The Image API probe's sample query sorted
+  by `pid`, but a Solr cursorMark query is a 400 unless its sort names the index's uniqueKey — and on
+  SolrCloud that is `compositeId`. So the probe failed outright on every SolrCloud instance, listed no
+  pages, and fell back to Image API 2 while MZK serves Image API 3: canvases carried `ImageService2`,
+  `profile: http://iiif.io/api/image/2/level2.json`, `@id`/`@type` and `/full/full/`. Nothing looked
+  broken, because a failed probe is not an error and MZK's v3 server accepts the v2 URL spelling too.
+  `ImageApi` now asks `SolrClient.uniqueKey()`, as every other cursored query already did. Verified
+  live: MZK now reports `ImageService3`, `profile: level2` and `/full/max/`.
+- **The Kramerius version is now asked of the instance** at `/info`, rather than taken from the
+  registry or a config file. Both are a fallback. Of the 48 registry libraries that answer, three
+  disagree with the registry, and `svkos` is recorded as 5.7.3 while running 7.1.3 — a different
+  adapter, a different Solr schema, and a manifest that cannot be built. A disagreement is logged and
+  overruled; an instance that answers nothing keeps the declared version. `/libraries` now reports the
+  version a resolved library was actually built on.
 - **`GET /{library}/{pid}/dimensions` contradicted `X-IIIF-Dimensions` for a document with no tiled
   page.** The manifest carried no header — there is nothing to measure, so it is complete — while the
   route required `total > 0` before it would say so and answered `partial`. Not a corner case: MZK
@@ -54,10 +68,10 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   a broken library file is the list of things the process exists to serve.
 
   `config/libraries.json` ships ready to use and carries **38 of the 56** registry libraries.
-  `make libraries` regenerates it. It is generated rather than written because the version field
-  selects the adapter, so a stale one means a library is read by the wrong adapter until somebody
-  notices — registry mode re-reads the version on a schedule and a file cannot, which is the price
-  of not depending on the registry at runtime.
+  `make libraries` regenerates it, and it is generated rather than written because fifty-six
+  hand-typed institutions is fifty-six chances to mistype one. The version in it is a fallback only
+  — see the `/info` entry above — so it does not go stale in the way that used to be static mode's
+  standing cost.
 
   The generator probes each instance instead of trusting the registry's `alive` flag, and records
   why each of the other 18 was left out: 9 the registry itself reports down, 5 unreachable over TLS

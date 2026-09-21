@@ -8,11 +8,15 @@ of libraries — a staging server, an air-gapped instance, a deployment that ser
 had only IIIF_LIBRARIES, a single comma-separated environment variable. At fifty-six entries that value
 is four kilobytes of one line with no comments and no diff worth reading.
 
-WHY GENERATED rather than hand-written. The version field selects the adapter, so a stale one is a real
-failure: a library upgraded 7.0 -> 7.2 keeps being read by the old adapter until someone edits the file.
-Registry mode never has that problem, because the health checker re-reads the version on its own
-schedule. A generated file does not fix the staleness — nothing in a static file can — but it makes the
-fix one command, and `git diff` then shows exactly which libraries moved.
+WHY GENERATED rather than hand-written. It used to be because the version field selects the adapter and
+a stale one was a real failure. That is no longer true in the same way: the gateway asks each instance
+for its own version at /info and prefers that answer, so a library that upgrades is followed without
+anyone regenerating anything. What the file still pins is the url and the name, which change on the
+order of years, plus a version to fall back on for an instance that answers no /info.
+
+It is still generated, because a hand-written list of fifty-six institutions is a list of fifty-six
+typos waiting to happen, and because `git diff` after a run is the cheapest possible review of what
+moved.
 
 WHY IT PROBES. The registry's `alive` flag is the registry's opinion, formed from wherever it runs. Five
 libraries it calls alive cannot be reached from outside at all — expired or incomplete TLS chains,
@@ -71,14 +75,50 @@ def search_path(version):
     )
 
 
+def info_version(url):
+    """
+    What the instance says it runs, which beats what the registry says it runs.
+
+    The registry is wrong for three of the forty-eight libraries that answer, and for `svkos` it is
+    wrong by a whole major version — 5.7.3 recorded, 7.1.3 running. Writing that into the file would
+    pick the K5 adapter for a K7 instance. The two paths discriminate cleanly: a K7 404s the v5 path
+    and a K5 404s the v7 path, so whichever answers is also evidence of the family.
+
+    Returns None when the instance does not answer; the caller then keeps the registry's value,
+    which is all it ever had.
+    """
+    for path in ("/search/api/client/v7.0/info", "/search/api/v5.0/info"):
+        request = urllib.request.Request(url + path, headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+                version = (json.load(response).get("version") or "").strip()
+                if version:
+                    return version
+        except (OSError, urllib.error.HTTPError, json.JSONDecodeError):
+            continue
+    return None
+
+
 def probe(library):
     """
-    One cheap Solr query, asking the question the gateway asks first.
+    Ask the instance what it is, then one cheap Solr query at the place that answer implies.
 
     rows=0: we want the status code and nothing else, and a library with 76M documents should not
     have to serialise one of them to tell us it is up.
+
+    Mutates `library["version"]` when the instance disagrees with the registry, so everything
+    downstream — the Solr path here, the adapter the gateway will pick, the value written to the
+    file — uses the one the instance vouched for.
     """
     url = library["url"].rstrip("/")
+    reported = info_version(url)
+    if reported and reported != library["version"]:
+        print(
+            f"  {library['code']}: registry says {library['version']}, instance says {reported}",
+            file=sys.stderr,
+        )
+        library["version"] = reported
+
     query = urllib.parse.urlencode({"q": "*:*", "rows": 0, "wt": "json"})
     target = f"{url}{search_path(library['version'])}?{query}"
     request = urllib.request.Request(target, headers={"User-Agent": USER_AGENT})
@@ -194,9 +234,12 @@ def main():
             "only until the next run, so make them in the script.",
             "",
             "url:     the Kramerius API base, no trailing slash.",
-            "version: selects the adapter, so it is the field that goes stale and matters. Registry",
-            "         mode re-reads it on a schedule; a file cannot, which is the cost of not",
-            "         depending on the registry. Regenerate after a Kramerius release round.",
+            "version: what the instance reported at /info when this was generated, NOT what the",
+            "         registry said — the registry is wrong for three libraries, one of them by a",
+            "         whole major version. It is a record, not an instruction: the gateway asks",
+            "         /info itself at resolution and prefers that answer, so a library that",
+            "         upgrades is followed without regenerating anything. This value is what it",
+            "         falls back to for an instance that answers no /info at all.",
             "name:    the institution's name by language tag — its OWN language plus English. The",
             "         library code is not a name, and a name with no language tag is refused.",
             "rps:     OPTIONAL requests per second against this institution's image server,",

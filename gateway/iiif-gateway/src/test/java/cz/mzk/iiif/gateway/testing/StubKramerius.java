@@ -30,6 +30,14 @@ public final class StubKramerius implements AutoCloseable {
   private final boolean restricted;
 
   /**
+   * What this instance reports at /info, which is what now selects the adapter.
+   *
+   * <p>Null makes the endpoint 404, modelling the instances that do not answer one — the gateway
+   * has to fall back to the declared version rather than refuse to serve them.
+   */
+  private volatile String reportedVersion = "7.2.2";
+
+  /**
    * @param tiled whether the pages claim an Image API endpoint. False is how a test gets a complete
    *     manifest with no image server at all: a page with no tiles has no size to ask for.
    */
@@ -52,6 +60,15 @@ public final class StubKramerius implements AutoCloseable {
     server.createContext("/", this::handle);
     server.setExecutor(null);
     server.start();
+  }
+
+  /**
+   * What /info should report, or null for an instance that answers no /info at all.
+   *
+   * <p>Set before the library is resolved — resolution is once per library and then cached.
+   */
+  public void reportVersion(String version) {
+    this.reportedVersion = version;
   }
 
   /** The aspect a restricted page's thumbnail reports, and so the shape its canvas comes out. */
@@ -77,6 +94,16 @@ public final class StubKramerius implements AutoCloseable {
     URI uri = exchange.getRequestURI();
     String query = uri.getQuery() == null ? "" : uri.getQuery();
 
+    // Before the /search check, because the K7 info path contains "/search" and would otherwise be
+    // read as a Solr query.
+    if (uri.getPath().endsWith("/info")) {
+      if (reportedVersion == null) {
+        respond(exchange, 404, "{}");
+      } else {
+        respond(exchange, 200, "{\"version\":\"" + reportedVersion + "\",\"indexerVersion\":25}");
+      }
+      return;
+    }
     if (restricted && uri.getPath().endsWith("/image/thumb")) {
       // Public even when the image is not. Only the frame header matters — JpegHeader reads the
       // size without decoding, so a valid SOF0 is a valid thumbnail for this purpose.

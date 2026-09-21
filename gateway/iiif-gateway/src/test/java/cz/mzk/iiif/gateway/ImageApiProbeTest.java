@@ -99,8 +99,19 @@ class ImageApiProbeTest {
 
   private ImageApi.Profile probe(SolrSchema schema, int pages, InfoJson info) throws IOException {
     String url = start(schema, pages, info);
+    // Built the way Libraries.build builds one: with the SCHEMA's pid field. The short constructor
+    // defaults it to K7's `pid`, which on a K5 index is not the uniqueKey — and the probe's sort is
+    // built from exactly that field, so a harness using the default would disagree with production
+    // about the one thing these tests are here to check.
     SolrClient solr =
-        new SolrClient(HttpClient.newHttpClient(), url, Duration.ofSeconds(5), schema.searchPath());
+        new SolrClient(
+            HttpClient.newHttpClient(),
+            url,
+            Duration.ofSeconds(5),
+            schema.searchPath(),
+            schema.pidField(),
+            500,
+            50_000);
     return ImageApi.probe(HttpClient.newHttpClient(), url, solr, schema, Duration.ofSeconds(5));
   }
 
@@ -159,10 +170,19 @@ class ImageApiProbeTest {
       // has one. Same shape as the sync walk's has_tiles/modified failure.
       probe(new Solr5Schema(), 5, pid -> IMAGE_API_2);
 
-      assertThat(solrQueries).isNotEmpty();
-      String query = java.net.URLDecoder.decode(solrQueries.get(0), StandardCharsets.UTF_8);
+      // By content, not by position: the first query on the wire is the uniqueKey detection
+      // (`q=*:*&rows=0`), which the probe now needs because a cursorMark sort has to name the
+      // index's own key. Asserting on get(0) made this test about call order.
+      String query =
+          solrQueries.stream()
+              .map(raw -> java.net.URLDecoder.decode(raw, StandardCharsets.UTF_8))
+              .filter(decoded -> decoded.contains("page"))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("no page query was sent: " + solrQueries));
       assertThat(query).contains("fedora.model:page", "viewable:true", "dostupnost:public");
       assertThat(query).doesNotContain("accessibility:public", "has_tiles:true");
+      // K5 is standalone, so its uniqueKey is the pid field and the sort is spelled PID.
+      assertThat(query).contains("sort=PID asc");
     }
   }
 
@@ -223,6 +243,65 @@ class ImageApiProbeTest {
   @DisplayName("no public page to ask about means no claim, on either version")
   void noPublicPages() throws IOException {
     assertThat(probe(new Solr5Schema(), 0, pid -> IMAGE_API_2).available()).isFalse();
+  }
+
+  @Test
+  @DisplayName("the sample query uses the index's uniqueKey, so SolrCloud does not 400 it")
+  void solrCloudIsSampledWithItsOwnUniqueKey() throws IOException {
+    // MZK, exactly. Solr rejects a cursorMark query whose sort does not contain the uniqueKey, and
+    // on SolrCloud that is `compositeId`, not `pid`. The probe used to sort by the schema's pid
+    // field, so on every SolrCloud instance it got a 400, listed no pages, and concluded nothing.
+    //
+    // Which is why this needs a test rather than a look: a failed probe is not an error anybody
+    // sees. It falls back to Image API 2, and MZK serves Image API 3 — so the symptom was a
+    // perfectly well-formed manifest quietly declaring ImageService2 against a v3 server.
+    List<String> rejected = new ArrayList<>();
+    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          String query =
+              exchange.getRequestURI().getQuery() == null
+                  ? ""
+                  : exchange.getRequestURI().getQuery();
+
+          if (exchange.getRequestURI().getPath().contains("/search/iiif/")) {
+            respond(exchange, 200, IMAGE_API_3);
+            return;
+          }
+          // zkConnected is how SolrClient recognises a cloud, and the reason uniqueKey differs.
+          if (query.contains("rows=0")) {
+            respond(
+                exchange,
+                200,
+                "{\"responseHeader\":{\"status\":0,\"zkConnected\":true},"
+                    + "\"response\":{\"numFound\":9,\"docs\":[]}}");
+            return;
+          }
+          if (query.contains("cursorMark") && !query.contains("compositeId")) {
+            rejected.add(query);
+            respond(exchange, 400, "{\"error\":\"cursor requires a uniqueKey tiebreaker\"}");
+            return;
+          }
+          respond(
+              exchange,
+              200,
+              "{\"responseHeader\":{\"status\":0},\"response\":{\"numFound\":1,"
+                  + "\"docs\":[{\"pid\":\"uuid:page-0\"}]},\"nextCursorMark\":\"*\"}");
+        });
+    server.setExecutor(null);
+    server.start();
+    String url = "http://127.0.0.1:" + server.getAddress().getPort();
+
+    SolrSchema schema = new SolrSchema();
+    SolrClient solr =
+        new SolrClient(HttpClient.newHttpClient(), url, Duration.ofSeconds(5), schema.searchPath());
+    ImageApi.Profile probed =
+        ImageApi.probe(HttpClient.newHttpClient(), url, solr, schema, Duration.ofSeconds(5));
+
+    assertThat(rejected).as("a query sorted without the uniqueKey").isEmpty();
+    assertThat(probed.available()).isTrue();
+    assertThat(probed.version()).isEqualTo(3);
   }
 
   private static void respond(HttpExchange exchange, int status, String body) throws IOException {

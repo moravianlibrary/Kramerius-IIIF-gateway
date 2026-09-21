@@ -172,7 +172,14 @@ final class ImageApi {
             + " AND "
             + schema.publicFilter();
     return solr
-        .walkLimited(filter, schema.pidField() + " asc", List.of(schema.pidField()), SAMPLES)
+        // solr.uniqueKey(), NOT schema.pidField(). A cursorMark query is a 400 unless its sort
+        // contains the index's uniqueKey, and on SolrCloud that is `compositeId` rather than `pid`.
+        // Hardcoding the pid field here made this probe fail outright on every SolrCloud instance —
+        // MZK among them — which is not visible as an error, because a failed probe falls back to
+        // Image API 2 and MZK serves Image API 3. The result was a valid-looking manifest declaring
+        // ImageService2 against a v3 server. Third time this exact assumption has cost something;
+        // the SolrClient already knows the answer, so ask it.
+        .walkLimited(filter, solr.uniqueKey() + " asc", List.of(schema.pidField()), SAMPLES)
         .stream()
         .map(doc -> doc.path(schema.pidField()).asText(null))
         .filter(pid -> pid != null && !pid.isBlank())

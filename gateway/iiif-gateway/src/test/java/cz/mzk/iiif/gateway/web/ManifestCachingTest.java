@@ -76,11 +76,26 @@ class ManifestCachingTest {
   private void start(boolean tiled, int pages, int waitSeconds, boolean restricted)
       throws IOException {
     upstream = new StubKramerius(PID, pages, tiled, restricted);
+    startAgainst(upstream, "7.2.2", waitSeconds);
+  }
+
+  /**
+   * @param declaredVersion what IIIF_LIBRARIES claims, which is no longer what picks the adapter —
+   *     the instance's own /info is. Separated from the stub's reported version so the two can be
+   *     made to disagree.
+   */
+  private void startAgainst(StubKramerius stub, String declaredVersion) throws IOException {
+    startAgainst(stub, declaredVersion, 5);
+  }
+
+  private void startAgainst(StubKramerius stub, String declaredVersion, int waitSeconds)
+      throws IOException {
+    upstream = stub;
     port = freePort();
     adminPort = freePort();
 
     Map<String, String> env = new HashMap<>();
-    env.put("IIIF_LIBRARIES", "stub=" + upstream.url() + "|7.2.2|cs:Zkušební");
+    env.put("IIIF_LIBRARIES", "stub=" + upstream.url() + "|" + declaredVersion + "|cs:Zkušební");
     env.put("IIIF_PORT", String.valueOf(port));
     env.put("IIIF_ADMIN_PORT", String.valueOf(adminPort));
     env.put("IIIF_BASE_URL", "http://localhost:" + port);
@@ -268,6 +283,37 @@ class ManifestCachingTest {
     // a ClassCastException for any other implementation — and the SPI exists so there can be
     // others.
     assertThat(body).contains("\"status\":\"ok\"");
+  }
+
+  @Test
+  @DisplayName("the version the instance reports selects the adapter, not the declared one")
+  void theInstanceOutranksTheDeclaration() throws Exception {
+    // svkos, in miniature: the registry has it at 5.7.3 and it actually runs 7.1.3, which is not a
+    // detail but a different adapter — different Solr schema, different field names, different API
+    // paths. Declared K5 here, reports K7; if the declaration won, nothing below would resolve,
+    // because this stub only speaks the K7 client API.
+    StubKramerius stub = new StubKramerius(PID, 4, false);
+    stub.reportVersion("7.2.2");
+    startAgainst(stub, "5.7.3");
+
+    assertThat(get("/stub/" + PID).statusCode()).isEqualTo(200);
+    assertThat(get("/libraries").body())
+        .contains("\"version\":\"7.2.2\"", "\"adapter\":\"Kramerius714\"");
+  }
+
+  @Test
+  @DisplayName("an instance that reports no version leaves the declared one standing")
+  void theDeclarationIsTheFallback() throws Exception {
+    // Eight of the registry's 56 answer no /info. Every one is also unreachable at the root, so
+    // this path is reached by instances that are down rather than coy — but a gateway that refused
+    // to serve a library because it would not introduce itself would be strictly worse than one
+    // that believes the operator.
+    StubKramerius stub = new StubKramerius(PID, 4, false);
+    stub.reportVersion(null);
+    startAgainst(stub, "7.2.2");
+
+    assertThat(get("/stub/" + PID).statusCode()).isEqualTo(200);
+    assertThat(get("/libraries").body()).contains("\"version\":\"7.2.2\"");
   }
 
   @Test

@@ -396,7 +396,12 @@ The service is `ImageService3` (`profile: "level2"`) or `ImageService2`
 (`profile: "http://iiif.io/api/image/2/level2.json"`) according to the Image API version the library's
 `info.json` reports — **per library, not per page**, so the URL spelling and the service block always agree.
 Both versions are live in the field: 7.0.39, 7.0.41 and 7.1.7 answer Image API 2, while both measured 7.2.2
-instances answer Image API 3. The version is read from five public pages and every one that answers votes;
+instances answer Image API 3. Verified end to end against MZK 7.2.2.3, which serves `ImageService3` and
+whose canvases carry `id`/`type` and `/full/max/`. The probe used to fail outright on every **SolrCloud**
+instance — its sample query sorted by `pid` and a cursorMark query is a 400 unless the sort names the
+index's uniqueKey, which on SolrCloud is `compositeId` — and a failed probe falls back to 2, so MZK's
+manifests declared `ImageService2` against a v3 server. The version is read from five public pages and
+every one that answers votes;
 disagreement is logged and an even split resolves down to 2, which every instance measured accepts.
 
 **On K5 the same probe also decides whether there is a service at all**, because there it is a property of
