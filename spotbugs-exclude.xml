@@ -10,20 +10,22 @@
 
     These packages are records that hold Map and List components and are serialised to JSON immediately.
     Every value put into them is already immutable — Map.of, List.of, List.copyOf,
-    Collections.unmodifiableMap — but SpotBugs reasons about the *declared* type, so it reports each of
-    the 60 accessors and constructors as exposing internal state.
+    Collections.unmodifiableMap — but SpotBugs reasons about the *declared* type, so it reports each
+    accessor and constructor as exposing internal state. Measured with this file emptied: 60 reports in
+    presentation and 1 in kramerius.
 
     Copying defensively in each one would add sixty pieces of ceremony that copy an immutable collection
     into another immutable collection. The invariant is enforced where the values are created
     (LanguageMap, DocumentRecord's compact constructor) rather than at every boundary they cross.
 
     Scoped to these packages deliberately: anywhere that holds genuinely mutable state, this check
-    should still fire.
+    should still fire. cz.mzk.iiif.spi was listed here too and suppressed nothing — emptying the filter
+    leaves that module at zero findings — so it was removed rather than left to imply a problem it does
+    not have.
   -->
   <Match>
     <Or>
       <Package name="cz.mzk.iiif.presentation"/>
-      <Package name="cz.mzk.iiif.spi"/>
       <Package name="cz.mzk.iiif.kramerius"/>
     </Or>
     <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
