@@ -70,15 +70,6 @@ public record Config(
     Optional<String> translationsDir,
 
     /**
-     * Per-library catalogue mappings, added over the bundled ones at startup.
-     *
-     * <p>One <code>&lt;code&gt;.json</code> per library. Only MZK ships built in, because it is the
-     * only mapping anyone has verified — and it used to be a literal in Java, which meant no other
-     * library could have a catalogue link without a code change.
-     */
-    Optional<String> cataloguesDir,
-
-    /**
      * Model-table overrides, merged over the bundled tables at startup.
      *
      * <p>One <code>kramerius-&lt;floor&gt;.json</code> per version floor, holding only the models
@@ -141,6 +132,17 @@ public record Config(
       Map<String, List<String>> names,
 
       /**
+       * Where this library's system numbers resolve in a catalogue, or empty for the bundled
+       * mapping if there is one.
+       *
+       * <p>Here rather than in a directory of its own because it is the same KIND of setting as the
+       * rps above it: something local that the shared registry has no field for. It was
+       * IIIF_CATALOGUES_DIR, one file per library, which meant two places to look and only one of
+       * them checkable.
+       */
+      Optional<cz.mzk.iiif.spi.CatalogueLink> catalogue,
+
+      /**
        * Requests per second for THIS institution's image server, overriding IIIF_UPSTREAM_RPS.
        *
        * <p>One global number is the wrong shape for the thing it protects. The registry's 56
@@ -159,7 +161,13 @@ public record Config(
 
     /** A complete declaration with no rate — the shape IIIF_LIBRARIES has always had. */
     public StaticLibrary(String code, String url, String version, Map<String, List<String>> names) {
-      this(code, Optional.of(url), Optional.of(version), names, java.util.OptionalInt.empty());
+      this(
+          code,
+          Optional.of(url),
+          Optional.of(version),
+          names,
+          Optional.empty(),
+          java.util.OptionalInt.empty());
     }
   }
 
@@ -229,7 +237,6 @@ public record Config(
         Duration.ofSeconds(read.number("IIIF_FAILED_LOOKUP_RETRY_SECONDS", 86_400)),
         Duration.ofMinutes(read.number("IIIF_MANIFEST_TTL_MINUTES", 60)),
         read.optional("IIIF_TRANSLATIONS_DIR"),
-        read.optional("IIIF_CATALOGUES_DIR"),
         read.optional("IIIF_MODELS_DIR"),
         codes(read.optional("IIIF_EXCLUDED_LIBRARIES")));
   }
@@ -287,6 +294,10 @@ public record Config(
                         optionalPart(parts.get(1)),
                         optionalPart(parts.get(2)),
                         parts.size() > 3 ? parseNames(parts.get(3)) : Map.of(),
+                        // No catalogue and no rate inline: both are structured, and a positional
+                        // environment variable is the wrong shape for a list of regexes. They are
+                        // file-only, which is also where they can be schema-checked.
+                        Optional.empty(),
                         java.util.OptionalInt.empty()));
               }
             });

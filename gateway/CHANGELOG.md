@@ -69,6 +69,17 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   Chromium refuses the fetch outright.
 
 ### Added
+- **Catalogue mappings moved into the library file**, beside that library's rps and its names,
+  because a catalogue mapping is the same kind of thing: something local the shared registry has no
+  field for. `IIIF_CATALOGUES_DIR` — one `<code>.json` per library — is gone. Two mechanisms for one
+  kind of setting is one more than anyone remembers, and only one of them had a schema to check.
+
+  The bundled MZK mapping stays in the jar, so the common case still needs no setup, and a declared
+  mapping overrides it. The failure difference that justified a separate directory is kept rather
+  than the directory: everything else in the library file is fatal, because a library list that
+  cannot be read is the list of things the process exists to serve — but a `catalogue` block that
+  cannot be used is logged and skipped, costing that one library its link while the rest of its
+  entry still applies.
 - **A schema for the library file, and `config/check.sh` to check it against.** In `make check`. The
   gateway already refuses to start on a broken library file — deliberately, since that file is the
   list of things the process exists to serve — but startup is a bad time to find out, and there is one
@@ -128,7 +139,8 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   Still not published: `rights`, which needs a licence-name → URI mapping and is a policy decision,
   and `service`/`services` for Content Search and auth, which are out of scope for v2.
 - **Catalogue links are configuration, per library.** `catalogues.json` in the jar carries the
-  verified MZK mapping; `IIIF_CATALOGUES_DIR` takes one `<code>.json` per library, added over it. A
+  verified MZK mapping; every other library declares one in `IIIF_LIBRARIES_FILE`, beside its rps
+  and its names. A
   mapping is a record URL with `{id}` in it plus ordered regex rules, each capturing the record
   number in group 1 and mapping to the prefix the catalogue wants in front of it — first match wins,
   and nothing matching means no link, because a wrong catalogue link looks to a reader like a record

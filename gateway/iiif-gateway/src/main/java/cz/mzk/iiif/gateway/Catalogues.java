@@ -6,28 +6,26 @@
  * configuration. They were not: fifty-five libraries could not have a catalogue link at all without a
  * code change and a redeploy.
  *
- * The shape follows TranslationDirectory, for the same reasons: bundled defaults in the jar so the
- * common case needs no setup, plus a directory an operator can add to. One file per library, named for
- * its registry code — mzk.json, vkol.json — so adding a library is adding a file, and nothing has to be
- * kept in step with a release.
+ * WHAT IS LEFT HERE is the bundled default — MZK's, the only mapping anyone has verified — so the
+ * common case needs no setup at all. Everything else is declared per library in IIIF_LIBRARIES_FILE,
+ * beside that library's rps and its names, because a catalogue mapping is the same KIND of thing:
+ * something local that the shared registry has no field for. There was an IIIF_CATALOGUES_DIR holding
+ * one <code>.json per library; it is gone, because two mechanisms for one kind of setting is one more
+ * than anyone can be expected to remember, and only one of them had a schema to check.
  *
- * A missing directory is the normal case. An unreadable or malformed file is logged and skipped rather
- * than fatal: a bad catalogue mapping should cost that library its catalogue link, not the gateway its
- * ability to start.
+ * Parsing stays here rather than moving into LibraryFile: it is the shape of a catalogue mapping, and
+ * it is read from two places — the jar and the library file — which must not drift apart.
  */
 package cz.mzk.iiif.gateway;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,11 +46,10 @@ public final class Catalogues {
     this.byLibrary = byLibrary;
   }
 
-  /** The bundled mappings, with any from the configured directory added over them. */
-  public static Catalogues load(Optional<String> directory) {
-    Map<String, CatalogueLink> links = new LinkedHashMap<>(bundled());
-    directory.ifPresent(dir -> links.putAll(fromDirectory(Path.of(dir))));
-    LOG.info("catalogue links for {}", links.keySet());
+  /** The bundled mappings. A library file may override any of them, per library. */
+  public static Catalogues load() {
+    Map<String, CatalogueLink> links = bundled();
+    LOG.info("bundled catalogue links for {}", links.keySet());
     return new Catalogues(Map.copyOf(links));
   }
 
@@ -76,37 +73,16 @@ public final class Catalogues {
     }
   }
 
-  private static Map<String, CatalogueLink> fromDirectory(Path directory) {
-    if (!Files.isDirectory(directory)) {
-      LOG.warn("IIIF_CATALOGUES_DIR {} is not a directory; using the bundled mappings", directory);
-      return Map.of();
-    }
-    Map<String, CatalogueLink> links = new LinkedHashMap<>();
-    try (Stream<Path> files = Files.list(directory)) {
-      for (Path file : files.filter(path -> name(path).endsWith(".json")).toList()) {
-        String name = name(file);
-        String code = name.substring(0, name.length() - ".json".length());
-        try (InputStream in = Files.newInputStream(file)) {
-          parse(code, MAPPER.readTree(in)).ifPresent(link -> links.put(code, link));
-        } catch (IOException | RuntimeException e) {
-          // One bad file costs that library its link, and nothing else.
-          LOG.warn("skipping catalogue file {}: {}", file, e.toString());
-        }
-      }
-      LOG.info("merging catalogue mappings from {} for {}", directory, links.keySet());
-    } catch (IOException e) {
-      LOG.warn("could not read {}: {}", directory, e.toString());
-    }
-    return links;
-  }
-
-  /** A path's last element, or empty for a root — which cannot be a catalogue file. */
-  private static String name(Path path) {
-    Path fileName = path.getFileName();
-    return fileName == null ? "" : fileName.toString();
-  }
-
-  private static Optional<CatalogueLink> parse(String code, JsonNode node) {
+  /**
+   * One catalogue mapping, from the jar or from a library file.
+   *
+   * <p>Empty when the node declares no `url`, which is how "this entry has no catalogue" is
+   * spelled. Anything present but malformed throws — a rule with no capturing group cannot be
+   * applied, and silently dropping it would leave a library with a catalogue link for some of its
+   * documents and not others. The CALLER decides what that costs; both callers catch it and skip
+   * that one library.
+   */
+  static Optional<CatalogueLink> parse(String code, JsonNode node) {
     if (node == null || !node.hasNonNull("url")) {
       return Optional.empty();
     }

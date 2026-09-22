@@ -3,9 +3,10 @@
   "$id": "https://github.com/moravianlibrary/Kramerius-IIIF-gateway/config/libraries.schema.json",
   "title": "Kramerius IIIF gateway — per-library settings",
   "description": "The file IIIF_LIBRARIES_FILE points at. With IIIF_REGISTRY_URL also set this is an overlay and every field is optional; without it, each entry is the whole declaration and needs at least a url and a version. That distinction cannot be expressed here, because it depends on the environment — check.sh says so.",
-
   "type": "object",
-  "required": ["libraries"],
+  "required": [
+    "libraries"
+  ],
   "properties": {
     "libraries": {
       "type": "object",
@@ -19,15 +20,16 @@
           "description": "A note. The gateway skips _-prefixed codes, so this must not be checked as a library — the generator used to park its _excluded list here."
         }
       },
-      "additionalProperties": { "$ref": "#/$defs/library" }
+      "additionalProperties": {
+        "$ref": "#/$defs/library"
+      }
     }
   },
-
   "$defs": {
     "library": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Anything omitted comes from the registry.",
+      "description": "Anything omitted comes from the registry, except `catalogue`, which falls back to the mapping bundled in the jar.",
       "properties": {
         "url": {
           "type": "string",
@@ -49,8 +51,18 @@
           },
           "additionalProperties": {
             "oneOf": [
-              { "type": "string", "minLength": 1 },
-              { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
             ]
           }
         },
@@ -59,11 +71,49 @@
           "minimum": 0,
           "maximum": 1000,
           "description": "Requests per second against THIS institution's image server, overriding IIIF_UPSTREAM_RPS. The knob to reach for after an institution asks you to ease off. 0 disables pacing for it."
+        },
+        "catalogue": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url"
+          ],
+          "description": "Where this library's indexed system numbers resolve in a catalogue. Overrides the mapping bundled in the jar, which carries MZK's — the only one anyone has verified.",
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^https?://.*\\{id\\}",
+              "description": "The record URL, with {id} where the record identifier goes. Without the placeholder there is nowhere to put the number, which is why it is required here rather than discovered at the first manifest."
+            },
+            "rules": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Ordered; first match wins, and nothing matching means no link at all — a wrong catalogue link looks to a reader like a record the gateway found.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "pattern"
+                ],
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\(",
+                    "description": "Matched against the whole indexed system number. MUST capture the record number in group 1 — a pattern with no group is rejected at startup, because it cannot be applied."
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "description": "Put in front of the captured number verbatim, so it carries its own separator. Empty means the catalogue takes a bare number."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
   },
-
   "patternProperties": {
     "^_": {
       "description": "Notes. Ignored by the gateway, so anything goes."

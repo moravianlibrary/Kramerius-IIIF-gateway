@@ -104,7 +104,7 @@ public final class Libraries {
             new Kramerius70(models70),
             new Kramerius714(models70));
     this.translations = TranslationDirectory.load(config.translationsDir());
-    this.catalogues = Catalogues.load(config.cataloguesDir());
+    this.catalogues = Catalogues.load();
   }
 
   public AdapterRegistry adapters() {
@@ -263,7 +263,13 @@ public final class Libraries {
                 cache.map(c -> (ImageSizeSource) c).orElse(live),
                 urls,
                 profile(code, entry, licenses),
-                catalogues.forLibrary(code).orElse(null),
+                // Declared beats bundled. The bundled table carries MZK's verified mapping so
+                // the common case needs no setup; a library file can replace it or add one for any
+                // other library, which is the only way the other fifty-five ever get a link.
+                Optional.ofNullable(config.staticLibraries().get(code))
+                    .flatMap(Config.StaticLibrary::catalogue)
+                    .or(() -> catalogues.forLibrary(code))
+                    .orElse(null),
                 adapter.get().records(translations, licenses)),
             new PredictivePolicy(config.dimensionWait(), config.imageInfoConcurrency()),
             cache,

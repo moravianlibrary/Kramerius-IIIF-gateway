@@ -24,6 +24,13 @@
     "           host, or an instance mid-migration.",
     "  version  the Kramerius version, for an instance that answers no /info. Rarely useful — the",
     "           gateway asks each instance directly and prefers that answer.",
+    "  catalogue  where this library's indexed system numbers resolve: a record url with {id} in it,",
+    "           plus ordered rules, each capturing the record number in group 1 and mapping to the",
+    "           prefix the catalogue wants in front of it. First match wins; nothing matching means no",
+    "           link, because a wrong catalogue link looks to a reader like a record we found. MZK's",
+    "           is bundled in the jar; this is how every other library gets one. A mapping that cannot",
+    "           be used is logged and skipped rather than fatal — it costs that library its link, not",
+    "           the gateway its startup.",
     "",
     "EVERY FIELD IS OPTIONAL and anything omitted comes from the registry. Naming a library here",
     "also overrules the registry's `alive` flag, because naming it is you saying to serve it.",
@@ -34,9 +41,7 @@
     "least a url and a version. `scripts/libraries.py --snapshot <path>` writes a complete list in",
     "that shape, for a deployment that must not depend on the registry at runtime."
   ],
-
   "libraries": {},
-
   "_example": {
     "mzk": {
       "rps": 4
@@ -44,6 +49,15 @@
     "vkol": {
       "name": {
         "de": "Wissenschaftliche Bibliothek Olmütz"
+      },
+      "catalogue": {
+        "url": "https://vufind.vkol.cz/Record/{id}",
+        "rules": [
+          {
+            "pattern": "^vkol01-?(\\d{9})$",
+            "prefix": "VKOL01-"
+          }
+        ]
       }
     },
     "kfbz": {

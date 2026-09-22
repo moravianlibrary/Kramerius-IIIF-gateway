@@ -114,6 +114,52 @@ class LibraryFileTest {
   }
 
   @Test
+  @DisplayName("a catalogue mapping is read from the entry, beside the rps and the names")
+  void catalogueIsPartOfTheEntry() throws IOException {
+    // It used to live in IIIF_CATALOGUES_DIR, one <code>.json per library — a second mechanism for
+    // the same kind of thing, and the one without a schema to check it.
+    Path file =
+        write(
+            """
+        {"libraries": {"vkol": {"rps": 4, "catalogue": {
+            "url": "https://vufind.vkol.cz/Record/{id}",
+            "rules": [{"pattern": "^vkol01-?(\\\\d{9})$", "prefix": "VKOL01-"}]}}}}
+        """);
+
+    Config.StaticLibrary vkol = LibraryFile.load(file).get("vkol");
+
+    assertThat(vkol.rps()).hasValue(4);
+    assertThat(vkol.catalogue()).isPresent();
+    assertThat(vkol.catalogue().orElseThrow().urlFor("vkol01-000913055"))
+        .contains("https://vufind.vkol.cz/Record/VKOL01-000913055");
+  }
+
+  @Test
+  @DisplayName(
+      "a broken catalogue mapping costs that library its link, not the gateway its startup")
+  void aBrokenCatalogueIsSkipped() throws IOException {
+    // The one place this file is not strict, and deliberately. Everything else here is fatal
+    // because a library list that cannot be read is the list of things the process exists to serve.
+    // A regex with no capturing group is not that: it costs one library one link, the manifests are
+    // otherwise complete, and refusing to start would be the worse outcome. Keeping that difference
+    // is what folding the catalogue directory in here had to preserve.
+    Path file =
+        write(
+            """
+        {"libraries": {"vkol": {"rps": 4, "catalogue": {
+            "url": "https://vufind.vkol.cz/Record/{id}",
+            "rules": [{"pattern": "^vkol01-\\\\d{9}$", "prefix": "VKOL01-"}]}}}}
+        """);
+
+    Config.StaticLibrary vkol = LibraryFile.load(file).get("vkol");
+
+    // The entry survives, and everything else in it still applies.
+    assertThat(vkol).isNotNull();
+    assertThat(vkol.rps()).hasValue(4);
+    assertThat(vkol.catalogue()).isEmpty();
+  }
+
+  @Test
   @DisplayName("url and version are optional: an entry may be an overlay on the registry")
   void urlAndVersionAreOptional() throws IOException {
     // The case this exists for: an institution telephones and asks for a gentler rate. Saying so

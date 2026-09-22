@@ -88,8 +88,9 @@ final class DocumentBlocks {
    *
    * <p>v1 hardcoded a `library == "mzk"` check and an `MZK01-` prefix here. So, for a while, did
    * this rewrite — one file up, in `Libraries.catalogueFor`, while this comment already claimed
-   * both were configuration. They are now: `catalogues.json` in the jar, plus IIIF_CATALOGUES_DIR.
-   * See CatalogueLink for why the mapping cannot be derived and has to be stated per library.
+   * both were configuration. They are now: `catalogues.json` in the jar, plus a `catalogue` block
+   * per library in IIIF_LIBRARIES_FILE. See CatalogueLink for why the mapping cannot be derived and
+   * has to be stated per library.
    */
   List<Iiif.TextLink> homepage() {
     List<Iiif.TextLink> links = new ArrayList<>(2);

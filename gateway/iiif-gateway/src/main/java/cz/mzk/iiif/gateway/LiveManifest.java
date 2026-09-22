@@ -117,6 +117,6 @@ public final class LiveManifest {
 
   /** The same configured mappings the gateway serves from, so this tool shows what it would. */
   private static CatalogueLink catalogueFor(String code) {
-    return Catalogues.load(java.util.Optional.empty()).forLibrary(code).orElse(null);
+    return Catalogues.load().forLibrary(code).orElse(null);
   }
 }

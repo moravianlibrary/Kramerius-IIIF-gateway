@@ -66,6 +66,22 @@ except ImportError:
             problems.append(f'{code}: "rps" must be a whole number, got {entry["rps"]!r}')
         if "name" in entry and not isinstance(entry["name"], dict):
             problems.append(f'{code}: "name" must be an object of language tag to name')
+        catalogue = entry.get("catalogue")
+        if catalogue is not None:
+            if not isinstance(catalogue, dict):
+                problems.append(f'{code}: "catalogue" must be an object')
+            else:
+                url = catalogue.get("url")
+                if not isinstance(url, str) or "{id}" not in url:
+                    problems.append(f'{code}: catalogue url must contain {{id}}')
+                for i, rule in enumerate(catalogue.get("rules") or []):
+                    pattern = rule.get("pattern") if isinstance(rule, dict) else None
+                    if not isinstance(pattern, str) or "(" not in pattern:
+                        # Group 1 is where the record number comes from; without it the rule cannot
+                        # be applied, and the gateway rejects it at startup.
+                        problems.append(
+                            f"{code}: catalogue rule {i} has no capturing group: {pattern!r}"
+                        )
         for field in ("url", "version"):
             if field in entry and not isinstance(entry[field], str):
                 problems.append(f'{code}: "{field}" must be a string')
