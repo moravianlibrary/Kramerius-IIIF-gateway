@@ -146,7 +146,7 @@ test-integration: lib-install ## Tests needing a real Postgres (see db-up). Gate
 capabilities: ## Probe every alive registry library for Solr field availability
 	./scripts/capabilities.sh
 
-libraries: ## Regenerate config/libraries.json from the registry (needs network) — review the diff
+libraries: ## Write a complete library snapshot for a registry-free deployment (needs network)
 	./scripts/libraries.py
 
 country-codes: ## Regenerate the MARC country-code list from id.loc.gov (needs network) — review the diff

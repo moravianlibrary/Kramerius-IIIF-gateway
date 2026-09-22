@@ -137,20 +137,6 @@ class LibraryFileTest {
   }
 
   @Test
-  @DisplayName("an empty list is a startup failure, not a gateway that serves nothing")
-  void emptyIsRefused() throws IOException {
-    Path file =
-        write(
-            """
-        {"libraries": {}}
-        """);
-
-    assertThatThrownBy(() -> LibraryFile.load(file))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("nothing to serve");
-  }
-
-  @Test
   @DisplayName("a file with no libraries object says so, rather than serving nothing quietly")
   void wrongShape() throws IOException {
     Path file =
@@ -184,9 +170,8 @@ class LibraryFileTest {
   }
 
   @Test
-  @DisplayName("the generated config/libraries.json is readable by the reader that consumes it")
-  void shippedFileParses() {
-    // Generator and reader are in different languages, so nothing but this keeps them in step.
+  @DisplayName("the shipped config/libraries.json is an OVERLAY, not a copy of the registry")
+  void shippedFileIsAnOverlay() {
     Path shipped = Path.of("..", "..", "config", "libraries.json").toAbsolutePath().normalize();
     if (!Files.isReadable(shipped)) {
       return; // Built from a source archive without the repository around it.
@@ -194,16 +179,40 @@ class LibraryFileTest {
 
     Map<String, Config.StaticLibrary> libraries = LibraryFile.load(shipped);
 
-    assertThat(libraries).hasSizeGreaterThan(20).containsKey("mzk");
+    // Empty is correct and is the shipped state: there is nothing local to say yet. The file used
+    // to hold 38 libraries, each restating the url, version and name the registry already had and
+    // carrying not one local setting — a second copy of somebody else's data, going stale from the
+    // moment it was written.
+    //
+    // The assertion that matters is the one below: whatever ends up here must be LOCAL. A url or a
+    // version is legitimate for a test host or an instance that answers no /info, so those are not
+    // banned — but an entry that states nothing the registry lacks is a copy creeping back in.
     assertThat(libraries.values())
         .allSatisfy(
-            library -> {
-              assertThat(library.url())
-                  .get(org.assertj.core.api.InstanceOfAssertFactories.STRING)
-                  .startsWith("http");
-              assertThat(library.version())
-                  .get(org.assertj.core.api.InstanceOfAssertFactories.STRING)
-                  .matches("\\d+\\..*");
-            });
+            library ->
+                assertThat(
+                        library.rps().isPresent()
+                            || !library.names().isEmpty()
+                            || library.url().isPresent()
+                            || library.version().isPresent())
+                    .as(
+                        "%s states nothing; an empty entry is a copy of the registry",
+                        library.code())
+                    .isTrue());
+  }
+
+  @Test
+  @DisplayName("an empty overlay is valid: a deployment may have nothing local to say")
+  void anEmptyOverlayIsFine() throws IOException {
+    // It used to be a startup failure, back when a file was the whole library list. With the
+    // registry supplying the set, refusing to start over an empty overlay would refuse the
+    // ordinary case. Config still fails when there is no registry AND nothing declared.
+    Path file =
+        write(
+            """
+        {"libraries": {}}
+        """);
+
+    assertThat(LibraryFile.load(file)).isEmpty();
   }
 }

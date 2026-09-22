@@ -53,6 +53,21 @@ class ConfigTest {
   }
 
   @Test
+  @DisplayName("an empty overlay and no registry is still a startup failure")
+  void nothingToServeIsRefused(@TempDir Path directory) throws IOException {
+    // LibraryFile used to refuse an empty file itself, back when a file WAS the library list. It no
+    // longer does, because an empty overlay is the ordinary state alongside a registry. The
+    // guarantee has to survive the move: a gateway with no registry and nothing declared serves
+    // nothing, and should say so at startup rather than 404 every request.
+    Path file = directory.resolve("libraries.json");
+    Files.writeString(file, "{\"libraries\": {}}");
+
+    assertThatThrownBy(() -> Config.from(Map.of("IIIF_LIBRARIES_FILE", file.toString())))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("nothing to serve");
+  }
+
+  @Test
   @DisplayName("declaring a library does NOT switch the registry off — they overlay")
   void declarationsOverlayTheRegistry() {
     // It used to. That made the two mutually exclusive, so an operator who wanted one library

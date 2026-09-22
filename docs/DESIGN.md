@@ -502,7 +502,7 @@ a third party being down must not be able to fail `make check`.
 | `test-integration` | Postgres store and `iiif_library_sync` against `make db-up`. Asserts the three failure-only properties: prefetch resumes without redoing finished subtrees, a killed sync resumes at its watermark, concurrent workers never double-process. 8 tests, and they SKIP rather than fail without `IIIF_TEST_DB_URL` | no |
 | `smoke` | Live instances, one document per model, **one library per adapter** (pre-7.1.4, post-7.1.4, K5) so every fallback is exercised against real data | no |
 | `capabilities` | The field probe over every alive registry entry. How the *next* version boundary gets discovered | no |
-| `libraries` | Regenerates `config/libraries.json` from the registry, probing each instance rather than trusting its `alive` flag | no |
+| `libraries` | Writes a complete library snapshot for a registry-free deployment, probing each instance rather than trusting the registry's `alive` flag. Not `config/libraries.json`, which is the local overlay | no |
 | `country-codes` | Regenerates the MARC country-code list from id.loc.gov, plus the deprecated codes the libraries still hold | no |
 | `viewer-check` | Playwright + pinned Mirador 3.4.3 and Clover 2.14.0 in a container. DOM assertions; screenshots to `tests/viewer/out/` for review | no — third-party viewers must not be able to fail the gate |
 | `viewer-open` | Serves fixtures and opens the local viewer page via `xdg-open` | no |

@@ -92,11 +92,12 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   library can be redirected without editing a generated file. Failure is fatal rather than skipped:
   a broken library file is the list of things the process exists to serve.
 
-  `config/libraries.json` ships ready to use and carries **38 of the 56** registry libraries.
-  `make libraries` regenerates it, and it is generated rather than written because fifty-six
-  hand-typed institutions is fifty-six chances to mistype one. The version in it is a fallback only
-  — see the `/info` entry above — so it does not go stale in the way that used to be static mode's
-  standing cost.
+  `config/libraries.json` is now the **local overlay** and ships empty, which is the expected state.
+  It used to carry 38 libraries, each restating the url, version and name the registry already had
+  and carrying not one local setting — a second copy of somebody else's data, stale from the moment
+  it was written, and generated from the wrong registry at that. `scripts/libraries.py --snapshot
+  <path>` still writes a complete list for a deployment that must not reach the registry; that
+  output is not committed, because it is only valid on the day it ran.
 
   The generator probes each instance instead of trusting the registry's `alive` flag, and records
   why each of the other 18 was left out: 9 the registry itself reports down, 5 unreachable over TLS

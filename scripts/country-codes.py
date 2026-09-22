@@ -52,7 +52,7 @@ OUT = (
 )
 
 VOCABULARY = "https://id.loc.gov/vocabulary/countries"
-LIBRARIES = REPO / "config" / "libraries.json"
+REGISTRY_URL = "https://registr.digitalniknihovna.cz/api/libraries?archived=false"
 USER_AGENT = (
     "Kramerius-IIIF-gateway/dev "
     "(+https://github.com/moravianlibrary/Kramerius-IIIF-gateway)"
@@ -139,10 +139,13 @@ def main():
 
     # K7 only. K5 indexes no publication place at all — `publication_places.facet` is not in its
     # schema and the query 400s — so there is nothing there to scan and nothing there to filter.
+    # From the registry, not from config/libraries.json — that file is the local overlay now and
+    # carries no urls. The registry is the better source anyway: this wants EVERY K7 library, not
+    # the subset some deployment happens to configure.
     libraries = [
-        {"code": code, **entry}
-        for code, entry in json.loads(LIBRARIES.read_text())["libraries"].items()
-        if str(entry.get("version", "")).startswith("7")
+        library
+        for library in json.loads(get(REGISTRY_URL))
+        if str(library.get("version", "")).startswith("7") and library.get("url")
     ]
     counts = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:

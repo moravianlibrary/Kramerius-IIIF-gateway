@@ -80,10 +80,10 @@ public final class LibraryFile {
               }
             });
 
-    if (declared.isEmpty()) {
-      throw new IllegalStateException(
-          "IIIF_LIBRARIES_FILE " + file + " declares no libraries: nothing to serve");
-    }
+    // An empty file is fine now, and is in fact the shipped state: with the registry supplying the
+    // libraries, this file carries only what the registry cannot express, and a deployment with
+    // nothing local to say has nothing to put in it. Config still refuses to start when there is no
+    // registry AND nothing declared, which is the case this check used to be standing in for.
     return Map.copyOf(declared);
   }
 

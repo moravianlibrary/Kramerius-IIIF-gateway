@@ -1,34 +1,31 @@
 #!/usr/bin/env python3
 """
-Generate config/libraries.json — the static library list, from the registry that already knows.
+Write a COMPLETE library list from the registry, for a deployment that must not depend on it.
 
-WHY A FILE AT ALL, when registry mode serves every library with no configuration. Because the registry
-is a runtime dependency on somebody else's service, and a deployment that wants a fixed, reviewable set
-of libraries — a staging server, an air-gapped instance, a deployment that serves ten of the fifty-six —
-had only IIIF_LIBRARIES, a single comma-separated environment variable. At fifty-six entries that value
-is four kilobytes of one line with no comments and no diff worth reading.
+NOT config/libraries.json. That file is the local OVERLAY — the handful of things the registry has no
+field for — and it deliberately does not restate what the registry already knows. This script produces
+the other thing: a full snapshot of url, version and name for all the libraries that answer, so a
+staging server, an air-gapped instance or a deployment serving ten of the fifty-six can run with
+IIIF_REGISTRY_URL unset.
 
-WHY GENERATED rather than hand-written. It used to be because the version field selects the adapter and
-a stale one was a real failure. That is no longer true in the same way: the gateway asks each instance
-for its own version at /info and prefers that answer, so a library that upgrades is followed without
-anyone regenerating anything. What the file still pins is the url and the name, which change on the
-order of years, plus a version to fall back on for an instance that answers no /info.
+The version it writes is a starting value, not a pin. The gateway asks each instance for its own at
+/info and prefers that answer, so a library that upgrades is followed without regenerating anything.
 
-It is still generated, because a hand-written list of fifty-six institutions is a list of fifty-six
-typos waiting to happen, and because `git diff` after a run is the cheapest possible review of what
-moved.
+WHY IT PROBES. The registry's `alive` flag is its own opinion, formed from wherever it runs, and it is
+not always right in either direction — it called `svkos` dead for eight months while the instance served
+perfectly well. So each instance gets one cheap Solr query and has to answer it. What the probe learns,
+including the refusals, is written into the file: an operator whose library is missing should find out
+why from the file rather than from a timeout.
 
-WHY IT PROBES. The registry's `alive` flag is the registry's opinion, formed from wherever it runs. Five
-libraries it calls alive cannot be reached from outside at all — expired or incomplete TLS chains,
-mostly — and one answers 401. Writing those into the config would produce a gateway that advertises
-libraries it cannot serve, so each instance gets one cheap Solr query and has to answer it. What the
-probe learns, including the refusals, is written into the file: an operator whose library is missing
-should find out why from the file rather than from a timeout.
+A CAVEAT WORTH READING BEFORE YOU COMMIT THE OUTPUT: the list is what answered at the moment it ran. A
+library having a bad five minutes is dropped, silently, and looks in the diff exactly like one that was
+retired. Review the diff, and do not regenerate just because it has been a while.
 
-    scripts/libraries.py            # rewrite config/libraries.json
-    scripts/libraries.py --dry-run  # print the summary, write nothing
+    scripts/libraries.py                    # write config/libraries-snapshot.json
+    scripts/libraries.py --snapshot out.json
+    scripts/libraries.py --dry-run          # print it, write nothing
 
-Run it after a Kramerius release round, and review the diff.
+Run it when you need a registry-free deployment, and review the diff.
 """
 
 import argparse
@@ -42,7 +39,7 @@ import urllib.parse
 import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-OUT = REPO / "config" / "libraries.json"
+DEFAULT_SNAPSHOT = REPO / "config" / "libraries-snapshot.json"
 
 REGISTRY_URL = "https://registr.digitalniknihovna.cz/api/libraries?archived=false"
 USER_AGENT = (
@@ -181,8 +178,15 @@ def entry(library):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="print, write nothing")
+    parser.add_argument(
+        "--snapshot",
+        default=DEFAULT_SNAPSHOT,
+        type=pathlib.Path,
+        help="where to write the complete list (default: config/libraries-snapshot.json)",
+    )
     parser.add_argument("--registry", default=REGISTRY_URL)
     args = parser.parse_args()
+    out = args.snapshot
 
     registry = sorted(fetch(args.registry), key=lambda library: library["code"])
     print(f"{len(registry)} libraries in the registry", file=sys.stderr)
@@ -208,11 +212,11 @@ def main():
     # silently return that library to the global rate on the next `make libraries`. The header says
     # hand edits do not survive; this is the documented exception, so it has to be real.
     previous = {}
-    if OUT.exists():
+    if out.exists():
         try:
-            previous = json.loads(OUT.read_text(encoding="utf-8")).get("libraries", {})
+            previous = json.loads(out.read_text(encoding="utf-8")).get("libraries", {})
         except (OSError, json.JSONDecodeError) as error:
-            print(f"  could not read the existing {OUT.name}: {error}", file=sys.stderr)
+            print(f"  could not read the existing {out.name}: {error}", file=sys.stderr)
 
     served = {}
     for library in candidates:
@@ -260,9 +264,9 @@ def main():
     if args.dry_run:
         print(rendered)
     else:
-        OUT.parent.mkdir(parents=True, exist_ok=True)
-        OUT.write_text(rendered, encoding="utf-8")
-        print(f"wrote {OUT.relative_to(REPO)}", file=sys.stderr)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(rendered, encoding="utf-8")
+        print(f"wrote {out.relative_to(REPO)}", file=sys.stderr)
 
     print(f"{len(served)} served, {len(excluded)} excluded", file=sys.stderr)
     for code, reason in sorted(excluded.items()):

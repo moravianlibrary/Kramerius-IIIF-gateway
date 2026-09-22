@@ -26,3 +26,11 @@ tests/viewer/out/
 .idea/
 *.iml
 .vscode/
+
+# Written by scripts/libraries.py for a registry-free deployment: a snapshot of somebody else's
+# data, valid on the day it ran. config/libraries.json is the overlay and IS committed.
+config/libraries-snapshot.json
+
+# Python
+__pycache__/
+*.pyc
