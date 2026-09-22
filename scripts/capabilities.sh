@@ -25,7 +25,7 @@
 
 set -uo pipefail
 
-REGISTRY_URL="${IIIF_REGISTRY_URL:-https://api.registr.digitalniknihovna.cz/api/libraries}"
+REGISTRY_URL="${IIIF_REGISTRY_URL:-https://registr.digitalniknihovna.cz/api/libraries?archived=false}"
 TIMEOUT="${TIMEOUT:-60}"
 
 # Fields worth knowing about: everything an adapter's behaviour keys on.

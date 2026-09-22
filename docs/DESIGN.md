@@ -262,24 +262,21 @@ cleanly, since a K7 404s the v5 path and a K5 404s the v7 path, so which one ans
 the family. Whatever was declared is the fallback for an instance that does not answer, and a disagreement
 is logged and overruled.
 
-That is not caution, it is a measurement. Asked of all 56 registry libraries, 48 answered and **three
-disagreed with the registry**:
+That is not because the registry is unreliable. It is not: asked of all 55 of its libraries, the 47
+that answered `/info` reported exactly what the registry already said — **zero disagreements**. It is
+because the registry is a *cache* of this, refreshed on its own schedule, while we are one request from
+the source. Between a Kramerius upgrade and the registry noticing, an instance is served by whatever
+adapter its old version chose, and across the K5/K7 boundary that is not a degraded manifest but no
+manifest at all. One request removes the window, and removes the need to regenerate a file after a
+release round.
 
-| Library | Registry | Actually | Matters? |
-|---|---|---|---|
-| `svkos` | 5.7.3 | **7.1.3** | **yes — a different adapter entirely** |
-| `snk` | 7.0.23 | 7.0.39 | no, same floor |
-| `knav` | 7.2.2.1 | 7.2.2.3 | no, same floor |
-
-`svkos` is the case the design has to survive: picking `Kramerius50` for a Kramerius 7 instance means the
-wrong Solr schema, the wrong field names, the wrong API paths, and a manifest that cannot be built. It does
-not happen today only because the registry also flags `svkos` as dead and it is refused earlier — the same
-registry that has the version wrong is what decides that, which is luck rather than design.
-
-This removes static mode's one real cost. The file used to pin a version that went stale, and an upgraded
-library kept being read by the old adapter until `make libraries` was run again; now a library that upgrades
-is followed on the next resolution, in either mode. It also makes the health sweep's upgrade detection mean
-something — re-reading a stale registry on a schedule just re-reads a stale registry.
+> An earlier version of this section claimed the registry was wrong for three libraries, `svkos`
+> recorded as 5.7.3 while running 7.1.3. That was measured against
+> `api.registr.digitalniknihovna.cz` — a **second deployment** of the registry, with its own database
+> (different row ids) and months-stale rows. The live registry is
+> `registr.digitalniknihovna.cz/api/libraries?archived=false`, which is what `IIIF_REGISTRY_URL` now
+> names and what the registry's own web UI serves. Pointing at the wrong host was the actual bug; it
+> also explains the nine libraries whose `alive` flag differed between the two.
 
 The price is one extra request per library per sweep, and the sweep is bounded for the same reason it always
 was: it asks `/info` and one Solr query, never a full resolution. K7 costs one request because that path is
@@ -518,7 +515,7 @@ when they go stale.
 
 ### The registry
 
-`https://api.registr.digitalniknihovna.cz/api/libraries` carries `code`, `sigla`, `name`, `name_en`, `alive`,
+`https://registr.digitalniknihovna.cz/api/libraries?archived=false` carries `code`, `sigla`, `name`, `name_en`, `alive`,
 `version` as a full string, `url`, `logo`, `web`, `licenses`, and per-model counts. v1 fetched this on every
 request and used five fields. `name_en` is what makes bilingual labels free; `web` is the institution's own
 site, a better `homepage` than the Kramerius host v1 used; `alive` lets a dead library fail fast.

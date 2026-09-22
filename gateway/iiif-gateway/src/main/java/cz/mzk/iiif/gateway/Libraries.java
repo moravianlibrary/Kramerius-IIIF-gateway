@@ -121,12 +121,17 @@ public final class Libraries {
     return registry.flatMap(r -> r.find(code));
   }
 
-  /** Every code this gateway could serve, for the ops view. */
+  /**
+   * Every code this gateway could serve, for the ops view.
+   *
+   * <p>The union, not one or the other. A declaration used to hide the registry entirely, so an
+   * operator who set a rate for one library silently stopped serving the other fifty-five.
+   */
   public List<String> codes() {
-    if (!config.staticLibraries().isEmpty()) {
-      return List.copyOf(config.staticLibraries().keySet());
-    }
-    return registry.map(r -> List.copyOf(r.all().keySet())).orElseGet(List::of);
+    java.util.SequencedSet<String> codes = new java.util.LinkedHashSet<>();
+    registry.ifPresent(r -> codes.addAll(r.all().keySet()));
+    codes.addAll(config.staticLibraries().keySet());
+    return List.copyOf(codes);
   }
 
   public Resolution resolve(String code) {
@@ -142,18 +147,29 @@ public final class Libraries {
     }
 
     Config.StaticLibrary declared = config.staticLibraries().get(code);
-    if (declared != null) {
-      return build(code, declared.url(), declared.version(), Optional.empty());
+    Optional<RegistryEntry> entry = registry.flatMap(r -> r.find(code));
+
+    if (declared == null) {
+      if (entry.isEmpty()) {
+        return new Resolution.Unknown(code);
+      }
+      if (!entry.get().alive()) {
+        return new Resolution.Dead(code);
+      }
+      return build(code, entry.get().url(), entry.get().version().orElse(""), entry);
     }
 
-    Optional<RegistryEntry> entry = registry.flatMap(r -> r.find(code));
-    if (entry.isEmpty()) {
+    // Declared, so the registry's `alive` is not consulted: naming a library locally is the
+    // operator saying to serve it. That matters — the registry called `svkos` dead for eight
+    // months while the instance answered perfectly well, and an operator who can see that should
+    // not have to wait for the registry to agree.
+    Optional<String> url = declared.url().or(() -> entry.map(RegistryEntry::url));
+    if (url.isEmpty()) {
+      LOG.warn("{} is declared with no url and the registry has no entry for it", code);
       return new Resolution.Unknown(code);
     }
-    if (!entry.get().alive()) {
-      return new Resolution.Dead(code);
-    }
-    return build(code, entry.get().url(), entry.get().version().orElse(""), entry);
+    String version = declared.version().or(() -> entry.flatMap(RegistryEntry::version)).orElse("");
+    return build(code, url.get(), version, entry);
   }
 
   private Resolution build(
@@ -302,14 +318,19 @@ public final class Libraries {
     return reported;
   }
 
-  /** Everything a manifest says about the institution, from the registry where there is one. */
   /**
    * Everything a manifest says about the institution.
    *
-   * <p>The name comes from the registry where there is one, and from IIIF_LIBRARIES where the
-   * operator declared it. Failing both, all we have is the library CODE — and a code is not a name.
-   * It is emitted as `none` rather than tagged with a language, because claiming "mzk" is Czech is
-   * the same false-language bug as v1's `"cz"`, and a viewer selecting by locale would act on it.
+   * <p>The registry's names go in first and the operator's are applied OVER them, language tag by
+   * language tag. That is the merge that makes the registry usable as a base: it carries exactly
+   * two names per library — the institution's own and an English one, verified across all 55 rows —
+   * so a deployment wanting German, Polish or a corrected Czech had no way to say so without
+   * abandoning the registry for that library and restating its url and version too. Now `de:…` adds
+   * a third language and `cs:…` replaces the Czech, and nothing else changes.
+   *
+   * <p>Failing both, all we have is the library CODE — and a code is not a name. It is emitted as
+   * `none` rather than tagged with a language, because claiming "mzk" is Czech is the same
+   * false-language bug as v1's `"cz"`, and a viewer selecting by locale would act on it.
    *
    * <p>Kramerius cannot help here: /client/v7.0/info reports only an acronym, and points back at
    * the registry for the rest. So "Provided by: mzk" is what an operator gets for declaring a
@@ -330,9 +351,11 @@ public final class Libraries {
       RegistryEntry e = entry.get();
       label.put(e.nameLanguage(), List.of(e.name()));
       e.nameEnglish().ifPresent(english -> label.put("en", List.of(english)));
-    } else if (!declared.isEmpty()) {
-      label.putAll(declared);
-    } else {
+    }
+    // Over the registry's, per tag: an operator adding `de` keeps the Czech and the English.
+    label.putAll(declared);
+
+    if (label.isEmpty()) {
       LOG.warn(
           "{} has no name: declare one as IIIF_LIBRARIES={}=<url>|<version>|cs:Name;en:Name,"
               + " or manifests will attribute it to the bare code",
@@ -341,7 +364,7 @@ public final class Libraries {
       label.put("none", List.of(code));
     }
 
-    return LibraryProfile.of(code, "https://api.registr.digitalniknihovna.cz/api/libraries/" + code)
+    return LibraryProfile.of(code, "https://registr.digitalniknihovna.cz/library/" + code)
         .label(label)
         .homepage(entry.flatMap(RegistryEntry::web).orElse(null))
         .logo(entry.flatMap(RegistryEntry::logo).orElse(null))

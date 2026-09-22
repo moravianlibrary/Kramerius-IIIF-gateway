@@ -21,12 +21,22 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   broken, because a failed probe is not an error and MZK's v3 server accepts the v2 URL spelling too.
   `ImageApi` now asks `SolrClient.uniqueKey()`, as every other cursored query already did. Verified
   live: MZK now reports `ImageService3`, `profile: level2` and `/full/max/`.
-- **The Kramerius version is now asked of the instance** at `/info`, rather than taken from the
-  registry or a config file. Both are a fallback. Of the 48 registry libraries that answer, three
-  disagree with the registry, and `svkos` is recorded as 5.7.3 while running 7.1.3 — a different
-  adapter, a different Solr schema, and a manifest that cannot be built. A disagreement is logged and
-  overruled; an instance that answers nothing keeps the declared version. `/libraries` now reports the
-  version a resolved library was actually built on.
+- **`IIIF_REGISTRY_URL` pointed at the wrong registry.** `api.registr.digitalniknihovna.cz` is a
+  second deployment with its own database — different row ids — and rows months out of date: it had
+  `svkos` at 5.7.3 and dead, while the instance runs 7.1.3 and answers. Nine libraries had a
+  different `alive` flag between the two, and `snk` existed only on the stale one. The live registry,
+  and what the registry's own web UI serves, is
+  `registr.digitalniknihovna.cz/api/libraries?archived=false`. The IIIF `provider` id also moves from
+  an API URL on that host to `registr.digitalniknihovna.cz/library/{code}`, the page a human can
+  read, which is the URL Kramerius itself gives for a library.
+- **The Kramerius version is now asked of the instance** at `/info` rather than taken from the
+  registry or a config file; both are a fallback. Not because the registry is wrong — against the
+  live one, all 47 reachable libraries agree with their instance — but because it is a cache
+  refreshed on its own schedule, and between an upgrade and the registry noticing, an instance is
+  read by whatever adapter its old version chose. Across the K5/K7 boundary that is no manifest at
+  all rather than a worse one. A disagreement is logged and overruled; an instance that answers
+  nothing keeps the declared version. `/libraries` reports the version a resolved library was built
+  on.
 - **`GET /{library}/{pid}/dimensions` contradicted `X-IIIF-Dimensions` for a document with no tiled
   page.** The manifest carried no header — there is nothing to measure, so it is complete — while the
   route required `total > 0` before it would say so and answered `partial`. Not a corner case: MZK
@@ -59,6 +69,21 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   Chromium refuses the fetch outright.
 
 ### Added
+- **Local declarations overlay the registry instead of replacing it.** Setting `IIIF_LIBRARIES` or
+  `IIIF_LIBRARIES_FILE` used to clear `IIIF_REGISTRY_URL` outright and `/libraries` then listed only
+  what was declared — so an operator who wanted one thing the registry cannot express had to restate
+  all fifty-six libraries and own keeping them current. Set both now and the registry supplies the
+  set and the facts, while each stated field is applied over it; every field is optional, and an
+  empty positional segment (`mzk=||de:…`) keeps the registry's. Names merge per language tag, so
+  adding `de` keeps the Czech and the English.
+
+  What this is for is what the registry does not carry: a per-library `rps`, a name in any language
+  but the institution's own and English (it has exactly those two, across all 55 rows), and a
+  redirect to a test host. Declaring a library also overrules the registry's `alive` flag, since
+  naming it is the operator saying to serve it.
+
+  With no registry there is nothing to inherit from, so a declaration still has to be complete — the
+  deployment with no runtime dependency on a shared service is unchanged.
 - **`IIIF_LIBRARIES_FILE` — the libraries to serve, declared in a JSON file.** Static mode existed
   already, but only as `IIIF_LIBRARIES`, one comma-separated environment variable; for the registry's
   fifty-six institutions that is four kilobytes on one line, with nowhere to put a comment and no

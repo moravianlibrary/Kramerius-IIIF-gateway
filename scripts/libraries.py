@@ -44,7 +44,7 @@ import urllib.request
 REPO = pathlib.Path(__file__).resolve().parent.parent
 OUT = REPO / "config" / "libraries.json"
 
-REGISTRY_URL = "https://api.registr.digitalniknihovna.cz/api/libraries"
+REGISTRY_URL = "https://registr.digitalniknihovna.cz/api/libraries?archived=false"
 USER_AGENT = (
     "Kramerius-IIIF-gateway/dev "
     "(+https://github.com/moravianlibrary/Kramerius-IIIF-gateway)"
@@ -79,10 +79,11 @@ def info_version(url):
     """
     What the instance says it runs, which beats what the registry says it runs.
 
-    The registry is wrong for three of the forty-eight libraries that answer, and for `svkos` it is
-    wrong by a whole major version — 5.7.3 recorded, 7.1.3 running. Writing that into the file would
-    pick the K5 adapter for a K7 instance. The two paths discriminate cleanly: a K7 404s the v5 path
-    and a K5 404s the v7 path, so whichever answers is also evidence of the family.
+    Not because the registry is wrong — asked of all 55, the 47 that answer /info agree with it
+    exactly. Because the registry is a cache refreshed on its own schedule, and this file is a cache
+    of that cache, so asking the instance collapses two staleness windows into none. The two paths
+    discriminate cleanly: a K7 404s the v5 path and a K5 404s the v7 path, so whichever answers is
+    also evidence of the family.
 
     Returns None when the instance does not answer; the caller then keeps the registry's value,
     which is all it ever had.

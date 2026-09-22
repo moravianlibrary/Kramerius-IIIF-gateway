@@ -93,8 +93,7 @@ public final class LiveManifest {
             solr,
             withSizes ? new InfoJsonSizes(http, urls, Duration.ofSeconds(20), 8) : pids -> Map.of(),
             urls,
-            LibraryProfile.of(
-                    code, "https://api.registr.digitalniknihovna.cz/api/libraries/" + code)
+            LibraryProfile.of(code, "https://registr.digitalniknihovna.cz/library/" + code)
                 .label(label)
                 .build(),
             catalogueFor(code),

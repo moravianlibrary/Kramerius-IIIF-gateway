@@ -49,8 +49,8 @@ class LibraryFileTest {
     Map<String, Config.StaticLibrary> libraries = LibraryFile.load(file);
 
     assertThat(libraries).containsOnlyKeys("mzk");
-    assertThat(libraries.get("mzk").url()).isEqualTo("https://api.kramerius.mzk.cz");
-    assertThat(libraries.get("mzk").version()).isEqualTo("7.2.2.1");
+    assertThat(libraries.get("mzk").url()).contains("https://api.kramerius.mzk.cz");
+    assertThat(libraries.get("mzk").version()).contains("7.2.2.1");
     assertThat(libraries.get("mzk").names())
         .containsEntry("cs", List.of("Moravská zemská knihovna"))
         .containsEntry("en", List.of("Moravian Library"));
@@ -114,31 +114,26 @@ class LibraryFileTest {
   }
 
   @Test
-  @DisplayName("a library with no version is refused: the version is what selects the adapter")
-  void versionIsRequired() throws IOException {
+  @DisplayName("url and version are optional: an entry may be an overlay on the registry")
+  void urlAndVersionAreOptional() throws IOException {
+    // The case this exists for: an institution telephones and asks for a gentler rate. Saying so
+    // used to mean restating its url, its version and both its names — and turning the registry off
+    // for the other fifty-five libraries, since a declaration replaced the whole set.
     Path file =
         write(
             """
-        {"libraries": {"mzk": {"url": "https://a"}}}
+        {"libraries": {"mzk": {"rps": 4},
+                       "vkol": {"name": {"de": "Wissenschaftliche Bibliothek Olmütz"}}}}
         """);
 
-    assertThatThrownBy(() -> LibraryFile.load(file))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("version");
-  }
+    Map<String, Config.StaticLibrary> libraries = LibraryFile.load(file);
 
-  @Test
-  @DisplayName("a library with no URL is refused")
-  void urlIsRequired() throws IOException {
-    Path file =
-        write(
-            """
-        {"libraries": {"mzk": {"version": "7.2.2"}}}
-        """);
-
-    assertThatThrownBy(() -> LibraryFile.load(file))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("url");
+    assertThat(libraries.get("mzk").url()).isEmpty();
+    assertThat(libraries.get("mzk").version()).isEmpty();
+    assertThat(libraries.get("mzk").rps()).hasValue(4);
+    assertThat(libraries.get("vkol").names()).containsOnlyKeys("de");
+    // Whether an entry with neither url nor registry entry can be served is decided at resolve
+    // time, where it is possible to know what the registry covers. Config cannot see that.
   }
 
   @Test
@@ -203,8 +198,12 @@ class LibraryFileTest {
     assertThat(libraries.values())
         .allSatisfy(
             library -> {
-              assertThat(library.url()).startsWith("http");
-              assertThat(library.version()).matches("\\d+\\..*");
+              assertThat(library.url())
+                  .get(org.assertj.core.api.InstanceOfAssertFactories.STRING)
+                  .startsWith("http");
+              assertThat(library.version())
+                  .get(org.assertj.core.api.InstanceOfAssertFactories.STRING)
+                  .matches("\\d+\\..*");
             });
   }
 }

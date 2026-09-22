@@ -1,20 +1,21 @@
 /*
  * What version an instance says it is, asked of the instance.
  *
- * The version selects the adapter, so it is the single most load-bearing fact about a library — and
- * until now it arrived second-hand, from the shared registry or from a config file somebody typed.
- * Both go stale, and the registry measurably has: asked of all 56 registry libraries on 2026-09-21,
- * 48 answered /info and 3 of those disagreed with the registry —
+ * The version selects the adapter, so it is the most load-bearing fact about a library — and it used to
+ * arrive second-hand, from the shared registry or from a version somebody typed into a config file.
  *
- *     svkos   registry 5.7.3     actually 7.1.3      <- a DIFFERENT ADAPTER
- *     snk     registry 7.0.23    actually 7.0.39
- *     knav    registry 7.2.2.1   actually 7.2.2.3
+ * NOT because the registry is unreliable. It is not: asked of all 55 of its libraries on 2026-09-22, the
+ * 47 that answered /info reported exactly what the registry already said. Zero disagreements. (An earlier
+ * measurement here claimed three, including svkos at 5.7.3 against a 7.1.3 instance. That was taken from
+ * api.registr.digitalniknihovna.cz, a second deployment of the registry which is months stale for some
+ * rows — different database, different ids. The live one is registr.digitalniknihovna.cz/api/libraries,
+ * and it is what IIIF_REGISTRY_URL now names.)
  *
- * svkos is the one that matters: the registry has it a whole major version out, which would pick the
- * Kramerius50 adapter for an instance running Kramerius 7 — a different Solr schema, different field
- * names, different API paths, and a manifest that cannot be built. (It does not happen today only
- * because the registry also flags svkos as dead, so it is refused before any of this runs. That is
- * luck, not design: the same registry that has the version wrong is what decides it is dead.)
+ * It is because the registry is a CACHE of this, refreshed on its own schedule, and we are one request
+ * away from the source. Between a Kramerius upgrade and the registry noticing, an instance is served by
+ * whatever adapter its old version chose; across a K5/K7 boundary that is not a degraded manifest but no
+ * manifest at all. One request per library at resolve time removes the window entirely, and removes the
+ * need for anyone to regenerate a file after a release round.
  *
  * Two paths, because the client API moved and the old one was not kept:
  *

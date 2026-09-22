@@ -419,15 +419,20 @@ the instance wins.
 Kramerius release round, which is what the file's own header used to instruct. Also against: trusting
 the registry but *verifying* asynchronously, which is the same thing with a delay.
 
-**What settled it** was asking all 56 registry libraries directly. 48 answered `/info`; three disagreed
-with the registry, and one disagreed across the adapter boundary — `svkos` is recorded as 5.7.3 and runs
-7.1.3. The other two (`snk` 7.0.23→7.0.39, `knav` 7.2.2.1→7.2.2.3) land on the same adapter floor and
-change nothing, which is the point: the registry is not *usually* wrong, it is wrong rarely and
-catastrophically, and there is no way to tell which from the registry.
+**Corrected 2026-09-22, and the correction is the interesting part.** This entry originally said the
+measurement settled it: three of 48 libraries disagreed with the registry, `svkos` recorded as 5.7.3
+while running 7.1.3. That was measured against `api.registr.digitalniknihovna.cz`, which turns out to be
+a **second deployment** of the registry — its own database, different row ids, months-stale rows. The
+live one is `registr.digitalniknihovna.cz/api/libraries?archived=false`. Asked of it, **47 of 47
+reachable libraries agree with their instance. Zero disagreements.**
 
-`svkos` is not currently mis-served, because the registry also flags it dead and it is refused before
-any of this runs. That is not reassuring — the same source that has the version wrong is what decides
-it is dead, and its `alive` flag is demonstrably wrong too, since the instance answers.
+So the real finding was a configuration bug — we pointed at the wrong host — and it is fixed separately.
+The decision stands anyway, on a weaker and more honest argument: the registry is a *cache* of what the
+instance would tell us, refreshed on its own schedule, and we are one request from the source. Between
+an upgrade and the registry noticing, an instance is served by whatever adapter its stale version chose;
+across the K5/K7 boundary that is not a degraded manifest but no manifest at all. One request per
+library at resolve time closes the window and means nobody has to regenerate a file after a release
+round.
 
 **What it costs**: one extra request per library per health sweep (two for K5, since the K7 path is
 tried first). The eight libraries that answer no `/info` are all unreachable at the root as well, so

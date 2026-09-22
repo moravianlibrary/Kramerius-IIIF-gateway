@@ -88,11 +88,11 @@ public final class LibraryFile {
   }
 
   private static Config.StaticLibrary parse(Path file, String code, JsonNode node) {
-    String url = text(file, code, node, "url");
-    // The version selects the adapter, so it is not optional and cannot be guessed. Asking the
-    // instance for it would mean a network call before the process is configured, and would leave a
-    // gateway that starts differently depending on who was up at the time.
-    String version = text(file, code, node, "version");
+    // Both optional, because an entry may be an OVERLAY on a registry that already knows them. A
+    // file with neither and no registry is caught at resolve time, where it is possible to say
+    // which libraries the registry covers; Config cannot see that.
+    java.util.Optional<String> url = optional(node, "url");
+    java.util.Optional<String> version = optional(node, "version");
 
     // Optional, and absent for almost every library: the global rate is the right answer until an
     // institution says otherwise. A non-integer is a startup failure rather than a silent default,
@@ -112,13 +112,9 @@ public final class LibraryFile {
         rps.isInt() ? java.util.OptionalInt.of(rps.intValue()) : java.util.OptionalInt.empty());
   }
 
-  private static String text(Path file, String code, JsonNode node, String field) {
+  private static java.util.Optional<String> optional(JsonNode node, String field) {
     String value = node.path(field).asText("").trim();
-    if (value.isEmpty()) {
-      throw new IllegalStateException(
-          "library " + code + " in " + file + " needs a \"" + field + "\"");
-    }
-    return value;
+    return value.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(value);
   }
 
   /**

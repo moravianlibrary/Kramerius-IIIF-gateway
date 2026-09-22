@@ -53,21 +53,22 @@ class ConfigTest {
   }
 
   @Test
-  @DisplayName("declaring libraries inline stops the registry being consulted at all")
-  void staticModeWins() {
-    // This is what makes a single-instance deployment possible with no dependency on a shared
-    // service.
+  @DisplayName("declaring a library does NOT switch the registry off — they overlay")
+  void declarationsOverlayTheRegistry() {
+    // It used to. That made the two mutually exclusive, so an operator who wanted one library
+    // rate-limited had to restate all fifty-six and then own keeping them current. Both set means
+    // the registry supplies the set and the facts, and declarations are applied over it.
     Config config =
         Config.from(
             Map.of(
                 "IIIF_REGISTRY_URL", "https://example.org/registry",
                 "IIIF_LIBRARIES", "mzk=https://api.kramerius.mzk.cz|7.2.2"));
 
-    assertThat(config.registryUrl()).isEmpty();
+    assertThat(config.registryUrl()).contains("https://example.org/registry");
     assertThat(config.staticLibraries())
         .containsOnlyKeys("mzk")
         .extractingByKey("mzk")
-        .extracting(Config.StaticLibrary::version)
+        .extracting(library -> library.version().orElseThrow())
         .isEqualTo("7.2.2");
   }
 
@@ -135,7 +136,7 @@ class ConfigTest {
                 "IIIF_LIBRARIES_FILE",
                 file.toString()));
 
-    assertThat(config.registryUrl()).isEmpty();
+    assertThat(config.registryUrl()).contains("https://example.org/registry");
     assertThat(config.staticLibraries()).containsOnlyKeys("mzk", "vkol");
   }
 
@@ -163,7 +164,7 @@ class ConfigTest {
         .containsOnlyKeys("mzk")
         .extractingByKey("mzk")
         .extracting(Config.StaticLibrary::url)
-        .isEqualTo("http://localhost:8983");
+        .isEqualTo(java.util.Optional.of("http://localhost:8983"));
   }
 
   @Test

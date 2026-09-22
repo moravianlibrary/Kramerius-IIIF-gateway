@@ -118,8 +118,26 @@ public record Config(
    */
   public record StaticLibrary(
       String code,
-      String url,
-      String version,
+
+      /**
+       * Where this library's Kramerius is, or empty to take the registry's.
+       *
+       * <p>Optional because a local declaration is an OVERLAY, not a replacement. The registry
+       * already knows every library's url, version and name, and it is right about them — asked of
+       * all 55, its version matched what every reachable instance reported. What it does not carry
+       * is anything local: a rate an institution asked for by telephone, a name in a third
+       * language, a temporary redirect to a test host. Before, saying any of those meant restating
+       * the two fields the registry had right, and turning the registry off for every other
+       * library.
+       *
+       * <p>Empty with no registry entry to fall back on is a configuration error, reported at
+       * resolve time rather than at startup: which libraries the registry knows is not something
+       * Config can see.
+       */
+      Optional<String> url,
+
+      /** The Kramerius version, or empty to take the registry's. See {@link #url}. */
+      Optional<String> version,
       Map<String, List<String>> names,
 
       /**
@@ -139,9 +157,9 @@ public record Config(
       names = Map.copyOf(names);
     }
 
-    /** Without a rate, for callers that have no opinion. */
+    /** A complete declaration with no rate — the shape IIIF_LIBRARIES has always had. */
     public StaticLibrary(String code, String url, String version, Map<String, List<String>> names) {
-      this(code, url, version, names, java.util.OptionalInt.empty());
+      this(code, Optional.of(url), Optional.of(version), names, java.util.OptionalInt.empty());
     }
   }
 
@@ -170,11 +188,14 @@ public record Config(
         .ifPresent(file -> declared.putAll(LibraryFile.load(Path.of(file))));
     declared.putAll(parseLibraries(read.optional("IIIF_LIBRARIES")));
 
-    // Declaring libraries statically means the registry is not consulted at all, which is what
-    // makes a deployment possible with no runtime dependency on a shared service.
-    if (!declared.isEmpty()) {
-      registry = Optional.empty();
-    }
+    // Declaring a library no longer switches the registry off. It used to, which made the two
+    // mutually exclusive: an operator who wanted one library rate-limited, or renamed in a third
+    // language, had to restate all fifty-six — and then owned keeping them current forever.
+    //
+    // Set both and the registry supplies the set and the facts, while the declarations are applied
+    // over it field by field. Set only IIIF_LIBRARIES or the file and nothing changes: there is no
+    // registry to fall back on, so a declaration has to be complete, which is what a deployment
+    // with no runtime dependency on a shared service wants.
     if (registry.isEmpty() && declared.isEmpty()) {
       throw new IllegalStateException(
           "set IIIF_REGISTRY_URL, IIIF_LIBRARIES_FILE or IIIF_LIBRARIES: nothing to serve");
@@ -256,16 +277,25 @@ public record Config(
                       "IIIF_LIBRARIES entries look like code=url|version[|cs:Name;en:Name], got: "
                           + entry);
                 }
+                // An empty segment means "keep the registry's". `mzk=||cs:Jméno` renames a library
+                // without claiming to know where it is or what it runs — which is the whole point
+                // of an overlay, and cheaper than repeating two facts the registry has right.
                 libraries.put(
                     parts.get(0),
                     new StaticLibrary(
                         parts.get(0),
-                        parts.get(1),
-                        parts.get(2),
-                        parts.size() > 3 ? parseNames(parts.get(3)) : Map.of()));
+                        optionalPart(parts.get(1)),
+                        optionalPart(parts.get(2)),
+                        parts.size() > 3 ? parseNames(parts.get(3)) : Map.of(),
+                        java.util.OptionalInt.empty()));
               }
             });
     return libraries;
+  }
+
+  /** A positional segment, where blank means "not stated" rather than "stated as empty". */
+  private static Optional<String> optionalPart(String raw) {
+    return Optional.ofNullable(raw).map(String::trim).filter(value -> !value.isEmpty());
   }
 
   /**

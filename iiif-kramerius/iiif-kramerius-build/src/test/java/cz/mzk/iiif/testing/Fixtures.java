@@ -58,7 +58,7 @@ public final class Fixtures {
       label.put("en", List.of(nameEnglish));
     }
 
-    return LibraryProfile.of(code, "https://api.registr.digitalniknihovna.cz/api/libraries/" + code)
+    return LibraryProfile.of(code, "https://registr.digitalniknihovna.cz/library/" + code)
         .label(label)
         .homepage("https://www.mzk.cz")
         .logo("https://api.registr.digitalniknihovna.cz/libraries/" + code + "/logo")
