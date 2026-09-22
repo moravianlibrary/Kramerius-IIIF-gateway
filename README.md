@@ -90,6 +90,11 @@ omitted comes from the registry:
 Inline does the same, with an empty segment meaning "keep the registry's":
 `IIIF_LIBRARIES="mzk=||de:Mährische Landesbibliothek"`.
 
+[`config/check.sh`](config/check.sh) validates the file against
+[`config/libraries.schema.json`](config/libraries.schema.json) before the gateway has to — it is in
+`make check`, and it catches the one mistake the gateway cannot: a misspelled key. `{"rate": 4}` parses,
+loads and starts, then paces that library at the global rate forever with nothing in the log to say why.
+
 For a deployment that must not reach the registry at all, `scripts/libraries.py --snapshot <path>`
 writes a complete list — url, version and name for every library that answers — which is then the whole
 configuration.

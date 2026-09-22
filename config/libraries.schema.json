@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/moravianlibrary/Kramerius-IIIF-gateway/config/libraries.schema.json",
+  "title": "Kramerius IIIF gateway — per-library settings",
+  "description": "The file IIIF_LIBRARIES_FILE points at. With IIIF_REGISTRY_URL also set this is an overlay and every field is optional; without it, each entry is the whole declaration and needs at least a url and a version. That distinction cannot be expressed here, because it depends on the environment — check.sh says so.",
+
+  "type": "object",
+  "required": ["libraries"],
+  "properties": {
+    "libraries": {
+      "type": "object",
+      "description": "Keyed by registry library code.",
+      "propertyNames": {
+        "pattern": "^[_a-z][a-z0-9_]*$",
+        "description": "A registry code — lowercase — or a _-prefixed note."
+      },
+      "patternProperties": {
+        "^_": {
+          "description": "A note. The gateway skips _-prefixed codes, so this must not be checked as a library — the generator used to park its _excluded list here."
+        }
+      },
+      "additionalProperties": { "$ref": "#/$defs/library" }
+    }
+  },
+
+  "$defs": {
+    "library": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Anything omitted comes from the registry.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://[^/].*[^/]$",
+          "description": "The Kramerius API base, no trailing slash. Only when it is not where the registry says: a test host, or an instance mid-migration."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)*([.-][A-Za-z0-9]+)?$",
+          "description": "Rarely useful. The gateway asks each instance at /info and prefers that answer; this is the fallback for one that does not reply."
+        },
+        "name": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Merged over the registry's PER LANGUAGE TAG. The registry carries exactly two — the institution's own language and English — so this is the only way to add a third or correct one.",
+          "propertyNames": {
+            "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+            "description": "A BCP 47 tag. An untagged name is refused: a name with the wrong language on it is a false claim a viewer acts on."
+          },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            ]
+          }
+        },
+        "rps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Requests per second against THIS institution's image server, overriding IIIF_UPSTREAM_RPS. The knob to reach for after an institution asks you to ease off. 0 disables pacing for it."
+        }
+      }
+    }
+  },
+
+  "patternProperties": {
+    "^_": {
+      "description": "Notes. Ignored by the gateway, so anything goes."
+    }
+  },
+  "additionalProperties": false
+}

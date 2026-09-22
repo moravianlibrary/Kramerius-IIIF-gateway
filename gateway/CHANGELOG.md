@@ -69,6 +69,13 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   Chromium refuses the fetch outright.
 
 ### Added
+- **A schema for the library file, and `config/check.sh` to check it against.** In `make check`. The
+  gateway already refuses to start on a broken library file — deliberately, since that file is the
+  list of things the process exists to serve — but startup is a bad time to find out, and there is one
+  mistake it cannot catch at all: a misspelled key. `{"rate": 4}` instead of `{"rps": 4}` parses,
+  loads, starts and serves, and paces that library at the global rate forever with nothing in the log.
+  The schema sets `additionalProperties: false`, so the typo is an error a second after you make it.
+  It uses `jsonschema` when installed and falls back to a narrower keys-and-types check when not.
 - **Local declarations overlay the registry instead of replacing it.** Setting `IIIF_LIBRARIES` or
   `IIIF_LIBRARIES_FILE` used to clear `IIIF_REGISTRY_URL` outright and `/libraries` then listed only
   what was declared — so an operator who wanted one thing the registry cannot express had to restate

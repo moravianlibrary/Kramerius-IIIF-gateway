@@ -115,7 +115,10 @@ set-lib-version: ## Set the LIBRARY version — model, build, embedded (requires
 		-DgenerateBackupPoms=false
 	@echo "library version set to $(VERSION); update $(LIB)/CHANGELOG.md before tagging"
 
-check: version-check format-check typecheck lint test ## The gate: run everything CI runs
+config-check: ## Check config/libraries.json against its schema
+	./config/check.sh
+
+check: version-check config-check format-check typecheck lint test ## The gate: run everything CI runs
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -266,7 +269,7 @@ clean-images: ## Remove built container images
 clean-all: clean clean-images db-down ## Remove everything this repo created
 
 .PHONY: help lib-install set-lib-version \
-	format format-check lint typecheck version-check check \
+	format format-check lint typecheck version-check config-check check \
 	test test-integration capabilities libraries corpus corpus-pick corpus-fetch \
 	smoke throughput viewer-image viewer-check viewer-open \
 	db-up db-down db-size \
