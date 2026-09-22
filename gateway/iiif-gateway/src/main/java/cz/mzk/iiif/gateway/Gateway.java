@@ -37,7 +37,7 @@ public final class Gateway {
       config = Config.fromEnvironment();
     } catch (RuntimeException e) {
       // Loudly, at startup, rather than quietly at the first request that needed the bad value.
-      LOG.error("configuration is invalid: {}", e.getMessage());
+      LOG.error("configuration is invalid: {}", message(e));
       System.exit(2);
       return;
     }
@@ -58,7 +58,18 @@ public final class Gateway {
       LOG.warn("no IIIF_DB_URL: dimensions will be re-read from the image server on every request");
     }
 
-    Libraries libraries = new Libraries(config, registry, store, http);
+    // Every remaining configuration FILE is read here: the translations, the model tables and the
+    // catalogue mappings bundled in the jar. They are as fatal as the environment above and must
+    // report the same way — an operator debugging a mounted directory should get one line naming
+    // the file, not a stack trace from whichever loader happened to run first.
+    Libraries libraries;
+    try {
+      libraries = new Libraries(config, registry, store, http);
+    } catch (RuntimeException e) {
+      LOG.error("configuration is invalid: {}", message(e));
+      System.exit(2);
+      return;
+    }
 
     switch (role) {
       case "web" -> web(config, libraries, store, http);
@@ -68,6 +79,20 @@ public final class Gateway {
         System.exit(2);
       }
     }
+  }
+
+  /**
+   * The message, plus the cause's where there is one.
+   *
+   * <p>"could not read translation file /etc/iiif/i18n/de.json" alone does not say what is wrong
+   * with it, and the reason is always in the cause.
+   */
+  private static String message(Throwable e) {
+    String own = e.getMessage() == null ? e.toString() : e.getMessage();
+    Throwable cause = e.getCause();
+    return cause == null
+        ? own
+        : own + " — " + (cause.getMessage() == null ? cause : cause.getMessage());
   }
 
   private static void web(

@@ -136,8 +136,8 @@ five-line file, not a copy of a table of twenty that then has to be kept in step
 
 The argument against, that a mis-edited table breaks manifests in ways an operator cannot debug, is
 answered by failing loudly: a table that does not parse, or whose `promoteTo` points nowhere, stops the
-gateway at startup. That is the one deliberate difference from `IIIF_TRANSLATIONS_DIR`, which skips a bad
-file and carries on — a wrong label is cosmetic, a wrong model shape is a wrong manifest.
+gateway at startup. This used to be the one deliberate difference from `IIIF_TRANSLATIONS_DIR`, which
+skipped a bad file and carried on. **Reversed on 2026-09-22 — see below.**
 
 ### Do we want a server-side manifest cache? — **yes**
 
@@ -446,3 +446,36 @@ file pins a url and a name, which change on the order of years.
 served even though it answers. Believing the instance about its version while believing the registry
 about whether it exists is not obviously coherent — but changing it would add libraries to what a
 deployment serves, which is a bigger decision than this one.
+
+
+### Should a malformed configuration file ever be skipped rather than fatal? — **no. Reverses the split above**
+
+**Decided** 2026-09-22. Every JSON configuration file now stops the gateway if it is wrong: the library
+file, a `catalogue` block inside it, a translations file, a model table, and a directory variable
+pointing at something that is not a directory.
+
+**What it reverses.** Three separate lenient paths, each defensible on its own:
+
+| | was | argument for leniency |
+|---|---|---|
+| a bad translation file | logged and skipped | a wrong label is cosmetic |
+| `IIIF_MODELS_DIR` not a directory | warned, used the bundled tables | a typo changes nothing about what is served |
+| a bad `catalogue` block | logged and skipped | costs one library one link, not the deployment |
+
+Each of those is true. Together they were wrong, for a reason none of them could see alone: **the
+failure they produce is silent.** An operator who mounts a translations directory and gets no Slovak, or
+points `IIIF_MODELS_DIR` at a file and keeps the bundled tables, has been told nothing they will notice.
+They will believe the configuration is in use. The gateway will run for months.
+
+That is the exact shape of every real bug found in this codebase: the Image API probe that failed on
+SolrCloud and quietly fell back to version 2; the `has_tiles` filter that matched nothing on K5 and read
+as "this library has no work to do"; the registry endpoint that was months stale and looked fine. A
+failure nobody can miss is cheaper than one nobody notices, every time.
+
+**And it costs almost nothing now.** `config/check.sh` is in `make check` and reports these errors
+against a schema before anything is committed, so the strictness lands at edit time rather than at
+deploy time. The one genuine cost — a deployment that will not start over a broken German label — is
+also the one case where the operator finds out immediately and can fix it in a second.
+
+**Not affected**: a directory variable left unset. That is not a mistake, it is the normal case, and it
+means the bundled defaults. The distinction is between *unconfigured* and *misconfigured*.

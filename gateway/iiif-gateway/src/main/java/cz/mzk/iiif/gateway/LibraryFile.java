@@ -13,12 +13,15 @@
  * and `_comment` is how those carry their prose. Keys beginning with `_` are ignored, so the generator
  * can record why a library was left out without that becoming something to serve.
  *
- * FAILURE IS FATAL HERE, with one deliberate exception. A broken library file is the list of things this
- * process exists to serve, so starting anyway would mean answering 404 for every library the operator
- * believes is configured — worse than not starting. The exception is the `catalogue` block: a bad regex
- * there costs that one library its catalogue link and nothing else, so it is logged and skipped. That
- * distinction is why catalogue mappings used to live in a directory of their own; folding them in here
- * kept the distinction and dropped the directory.
+ * FAILURE IS FATAL HERE, with no exceptions. A broken library file is the list of things this process
+ * exists to serve, so starting anyway would mean answering 404 for every library the operator believes
+ * is configured — worse than not starting.
+ *
+ * That holds for the `catalogue` block too, though it did not for one release. The reasoning then was
+ * that a bad regex costs one library one link while a bad url costs the deployment everything, so it
+ * was logged and skipped. The reasoning was wrong: a library quietly missing its catalogue link is a
+ * failure nobody notices, and this codebase has been bitten by that shape repeatedly. One rule for one
+ * file is also the only rule an operator can hold in their head.
  *
  * Documented in .env.example and checked by config/libraries.schema.json — which catches what this
  * class structurally cannot, a misspelled key:
@@ -41,12 +44,9 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class LibraryFile {
 
-  private static final Logger LOG = LoggerFactory.getLogger(LibraryFile.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private LibraryFile() {}
@@ -123,29 +123,36 @@ public final class LibraryFile {
   /**
    * This library's catalogue mapping, if it declares one.
    *
-   * <p>LOGGED AND SKIPPED rather than fatal, which is the one place this file is not strict. The
-   * rest of it is: a bad url stops the gateway, because a library list that cannot be read is the
-   * list of things the process exists to serve. A catalogue mapping is not that. It costs that one
-   * library its catalogue link, the manifests are otherwise complete and correct, and refusing to
-   * start over a regex would be a worse outcome than serving fifty-five libraries and logging about
-   * the fifty-sixth. That distinction is why this lived in its own directory before, and folding it
-   * in here meant keeping the distinction rather than the directory.
+   * <p>FATAL, like every other mistake in this file. It was logged and skipped for one release, on
+   * the reasoning that a bad regex costs one library one link while a bad url costs the deployment
+   * everything — so the punishment should fit. That was wrong, and wrong in the way this codebase
+   * keeps being wrong: a library that quietly loses its catalogue link is a failure nobody notices,
+   * which is worse than one nobody can miss. Silence is not a lighter penalty, it is a deferred and
+   * unattributed one.
+   *
+   * <p>It costs nothing to be strict here, either. `config/check.sh` is in `make check` and reports
+   * exactly these errors against exactly this schema, so a mapping that would stop the gateway
+   * stops the commit first.
    */
   private static java.util.Optional<cz.mzk.iiif.spi.CatalogueLink> catalogue(
       Path file, String code, JsonNode node) {
     if (node.isMissingNode() || node.isNull()) {
       return java.util.Optional.empty();
     }
+    java.util.Optional<cz.mzk.iiif.spi.CatalogueLink> parsed;
     try {
-      java.util.Optional<cz.mzk.iiif.spi.CatalogueLink> parsed = Catalogues.parse(code, node);
-      if (parsed.isEmpty()) {
-        LOG.warn("{} in {}: \"catalogue\" has no \"url\"; no catalogue link for it", code, file);
-      }
-      return parsed;
+      parsed = Catalogues.parse(code, node);
     } catch (RuntimeException e) {
-      LOG.warn("{} in {}: unusable catalogue mapping, ignoring it — {}", code, file, e.toString());
-      return java.util.Optional.empty();
+      throw new IllegalStateException(
+          "IIIF_LIBRARIES_FILE " + file + ": " + code + " has an unusable catalogue mapping", e);
     }
+    if (parsed.isEmpty()) {
+      // A `catalogue` block with no `url` is not "no catalogue" — that is spelled by leaving the
+      // block out. It is a half-written mapping, and the operator meant something by it.
+      throw new IllegalStateException(
+          "IIIF_LIBRARIES_FILE " + file + ": " + code + " has a \"catalogue\" with no \"url\"");
+    }
+    return parsed;
   }
 
   private static java.util.Optional<String> optional(JsonNode node, String field) {

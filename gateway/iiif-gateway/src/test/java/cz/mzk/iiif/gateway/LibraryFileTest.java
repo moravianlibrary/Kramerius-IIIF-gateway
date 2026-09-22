@@ -135,14 +135,12 @@ class LibraryFileTest {
   }
 
   @Test
-  @DisplayName(
-      "a broken catalogue mapping costs that library its link, not the gateway its startup")
-  void aBrokenCatalogueIsSkipped() throws IOException {
-    // The one place this file is not strict, and deliberately. Everything else here is fatal
-    // because a library list that cannot be read is the list of things the process exists to serve.
-    // A regex with no capturing group is not that: it costs one library one link, the manifests are
-    // otherwise complete, and refusing to start would be the worse outcome. Keeping that difference
-    // is what folding the catalogue directory in here had to preserve.
+  @DisplayName("a broken catalogue mapping stops the gateway, like every other mistake here")
+  void aBrokenCatalogueIsFatal() throws IOException {
+    // One rule for one file. This was logged and skipped for a release, on the reasoning that a bad
+    // regex costs one library one link while a bad url costs the deployment everything, so the
+    // punishment should fit. The reasoning was wrong: a library quietly missing its catalogue link
+    // is a failure nobody notices, which is worse than one nobody can miss.
     Path file =
         write(
             """
@@ -151,12 +149,29 @@ class LibraryFileTest {
             "rules": [{"pattern": "^vkol01-\\\\d{9}$", "prefix": "VKOL01-"}]}}}}
         """);
 
-    Config.StaticLibrary vkol = LibraryFile.load(file).get("vkol");
+    // No capturing group, so there is nowhere to read the record number from.
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("vkol")
+        .hasMessageContaining("catalogue")
+        .cause()
+        .hasMessageContaining("group 1");
+  }
 
-    // The entry survives, and everything else in it still applies.
-    assertThat(vkol).isNotNull();
-    assertThat(vkol.rps()).hasValue(4);
-    assertThat(vkol.catalogue()).isEmpty();
+  @Test
+  @DisplayName("a catalogue block with no url is a mistake, not a way to say no catalogue")
+  void aCatalogueWithoutUrlIsFatal() throws IOException {
+    // Leaving the block out is how "no catalogue" is spelled. A block that is present but has no
+    // url is half-written, and the operator meant something by it.
+    Path file =
+        write(
+            """
+        {"libraries": {"vkol": {"catalogue": {"rules": []}}}}
+        """);
+
+    assertThatThrownBy(() -> LibraryFile.load(file))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("no \"url\"");
   }
 
   @Test

@@ -68,6 +68,21 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   correct manifest hang a viewer forever with no error. It also loaded pages over `file://`, where
   Chromium refuses the fetch outright.
 
+### Changed
+- **Every JSON configuration file now stops the gateway if it is wrong.** Three paths used to be
+  lenient — a translation file that did not parse was skipped, `IIIF_MODELS_DIR` pointing at a
+  non-directory warned and used the bundled tables, and a bad `catalogue` block was skipped. Each was
+  defensible alone; together they were wrong, because the failure they produce is SILENT. An operator
+  who mounts a translations directory and gets no Slovak has been told nothing they will notice, and
+  will believe the configuration is in use for months.
+
+  That is the shape of every real bug found in this codebase — the Image API probe that quietly fell
+  back to version 2, the `has_tiles` filter that matched nothing on K5, the registry endpoint that was
+  months stale. A failure nobody can miss is cheaper than one nobody notices.
+
+  Unaffected: a directory variable left UNSET. That is not a mistake, it is the normal case, and it
+  means the bundled defaults. The distinction is between unconfigured and misconfigured.
+
 ### Added
 - **Catalogue mappings moved into the library file**, beside that library's rps and its names,
   because a catalogue mapping is the same kind of thing: something local the shared registry has no
@@ -75,11 +90,7 @@ Following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
   kind of setting is one more than anyone remembers, and only one of them had a schema to check.
 
   The bundled MZK mapping stays in the jar, so the common case still needs no setup, and a declared
-  mapping overrides it. The failure difference that justified a separate directory is kept rather
-  than the directory: everything else in the library file is fatal, because a library list that
-  cannot be read is the list of things the process exists to serve — but a `catalogue` block that
-  cannot be used is logged and skipped, costing that one library its link while the rest of its
-  entry still applies.
+  mapping overrides it.
 - **A schema for the library file, and `config/check.sh` to check it against.** In `make check`. The
   gateway already refuses to start on a broken library file — deliberately, since that file is the
   list of things the process exists to serve — but startup is a bad time to find out, and there is one

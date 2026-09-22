@@ -46,8 +46,10 @@ public final class ModelDirectory {
 
     Path path = Path.of(directory.get());
     if (!Files.isDirectory(path)) {
-      LOG.warn("IIIF_MODELS_DIR {} is not a directory; using the bundled model tables", path);
-      return DocumentModels.bundled(versionFloor);
+      // The operator set the variable, so they meant to mount something there. Quietly falling
+      // back to the bundled tables is how a deployment runs for months on configuration it thinks
+      // it replaced.
+      throw new IllegalStateException("IIIF_MODELS_DIR " + path + " is not a directory");
     }
 
     Path file = path.resolve("kramerius-" + versionFloor + ".json");

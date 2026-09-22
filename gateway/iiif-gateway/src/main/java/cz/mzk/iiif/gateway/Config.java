@@ -136,9 +136,10 @@ public record Config(
        * mapping if there is one.
        *
        * <p>Here rather than in a directory of its own because it is the same KIND of setting as the
-       * rps above it: something local that the shared registry has no field for. It was
+       * rps below it: something local that the shared registry has no field for. It was
        * IIIF_CATALOGUES_DIR, one file per library, which meant two places to look and only one of
-       * them checkable.
+       * them checkable. A mapping that cannot be used stops the gateway, exactly like every other
+       * mistake in that file — see LibraryFile.
        */
       Optional<cz.mzk.iiif.spi.CatalogueLink> catalogue,
 

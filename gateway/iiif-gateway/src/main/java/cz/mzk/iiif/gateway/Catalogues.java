@@ -14,7 +14,9 @@
  * than anyone can be expected to remember, and only one of them had a schema to check.
  *
  * Parsing stays here rather than moving into LibraryFile: it is the shape of a catalogue mapping, and
- * it is read from two places — the jar and the library file — which must not drift apart.
+ * it is read from two places — the jar and the library file — which must not drift apart. It throws on
+ * anything it cannot use, and BOTH callers let that through: a mapping nobody can apply stops the
+ * gateway rather than costing one library a link nobody notices is missing.
  */
 package cz.mzk.iiif.gateway;
 
@@ -90,13 +92,15 @@ public final class Catalogues {
     for (JsonNode rule : node.path("rules")) {
       String pattern = rule.path("pattern").asText(null);
       if (pattern == null || pattern.isBlank()) {
-        continue;
+        throw new IllegalArgumentException("a catalogue rule for " + code + " has no \"pattern\"");
       }
       rules.add(CatalogueLink.Rule.of(pattern, rule.path("prefix").asText("")));
     }
     if (rules.isEmpty()) {
-      LOG.warn("catalogue mapping for {} has no usable rules; ignoring it", code);
-      return Optional.empty();
+      // A url with nothing that matches produces no link for any document, which is
+      // indistinguishable from having no mapping at all — except that somebody wrote one and
+      // believes it works.
+      throw new IllegalArgumentException("catalogue mapping for " + code + " has no usable rules");
     }
     return Optional.of(new CatalogueLink(node.get("url").asText(), rules));
   }

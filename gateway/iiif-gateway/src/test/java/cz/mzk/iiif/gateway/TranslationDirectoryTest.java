@@ -7,6 +7,7 @@
 package cz.mzk.iiif.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,12 +30,15 @@ class TranslationDirectoryTest {
   }
 
   @Test
-  @DisplayName("a directory that does not exist degrades to the bundled languages")
-  void missingDirectory() {
-    assertThat(
-            TranslationDirectory.load(Optional.of("/nonexistent/iiif/i18n"))
-                .lookup("metadata.title"))
-        .containsOnlyKeys("cs", "en");
+  @DisplayName("a configured directory that is not there stops the gateway")
+  void missingDirectoryIsFatal() {
+    // NOT the normal case — that is the variable being unset, which the test above covers. Setting
+    // it to a path that is not there is an operator who mounted something and mounted it wrong, and
+    // the symptom of carrying on is a deployment running for months on translations it believes it
+    // replaced.
+    assertThatThrownBy(() -> TranslationDirectory.load(Optional.of("/nonexistent/iiif/i18n")))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("IIIF_TRANSLATIONS_DIR");
   }
 
   @Test
@@ -64,13 +68,18 @@ class TranslationDirectoryTest {
   }
 
   @Test
-  @DisplayName("one unreadable file is skipped rather than stopping startup")
-  void badFileIsSkipped(@TempDir Path dir) throws IOException {
+  @DisplayName("one unreadable file stops the gateway, like every other config mistake")
+  void badFileIsFatal(@TempDir Path dir) throws IOException {
+    // This was skipped-with-a-warning, on the argument that a wrong label is cosmetic and failing
+    // to start over one is a poor trade. True, and beside the point: an operator who mounts a
+    // translations directory and gets no Slovak has been told nothing they will notice. Every
+    // configuration file now fails the same way, which is the only rule anyone can hold in their
+    // head — and config/check.sh catches the library file before it ever gets this far.
     Files.writeString(dir.resolve("sk.json"), "{\"metadata.title\": \"Názov\"}");
     Files.writeString(dir.resolve("de.json"), "this is not json");
 
-    Translations translations = TranslationDirectory.load(Optional.of(dir.toString()));
-
-    assertThat(translations.lookup("metadata.title")).containsKeys("cs", "en", "sk");
+    assertThatThrownBy(() -> TranslationDirectory.load(Optional.of(dir.toString())))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("de.json");
   }
 }

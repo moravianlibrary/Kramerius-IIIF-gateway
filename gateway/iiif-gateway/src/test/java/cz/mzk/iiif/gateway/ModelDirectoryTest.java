@@ -53,17 +53,17 @@ class ModelDirectoryTest {
     }
 
     @Test
-    @DisplayName("a path that is not a directory warns and falls back rather than failing")
-    void notADirectory(@TempDir Path directory) throws IOException {
-      // Deliberately softer than a bad table: pointing at the wrong path is a deployment mistake
-      // with
-      // an obvious symptom, and refusing to start would take the gateway down for every library to
-      // punish a typo that changes nothing about what is served.
+    @DisplayName("a path that is not a directory stops the gateway")
+    void notADirectoryIsFatal(@TempDir Path directory) throws IOException {
+      // This used to warn and fall back, on the argument that a typo changes nothing about what is
+      // served. It does change something: the operator believes their model tables are in use and
+      // they are not, and nothing they look at will say so.
       Path file = directory.resolve("not-a-directory");
       Files.writeString(file, "");
 
-      assertThat(ModelDirectory.load(Optional.of(file.toString()), FLOOR).find("monograph"))
-          .isPresent();
+      assertThatThrownBy(() -> ModelDirectory.load(Optional.of(file.toString()), FLOOR))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("IIIF_MODELS_DIR");
     }
 
     @Test

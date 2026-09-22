@@ -9,8 +9,15 @@
  * of files found, merged over the bundled defaults key by key — so an operator can add Slovak, or correct
  * one Czech label, without copying a whole file and then having to keep it in step with future releases.
  *
- * A missing directory is not an error: it is the normal case. An unreadable FILE is logged and skipped,
- * because failing to start over one bad translation would be a poor trade.
+ * A missing directory is not an error: it is the normal case, and means the bundled languages. A
+ * directory that is present but unreadable, or a FILE in it that does not parse, stops the gateway.
+ *
+ * That last part used to be a warning. The argument for leniency was that a wrong label is cosmetic and
+ * failing to start over one is a poor trade — which is true as far as it goes, and beside the point. An
+ * operator who mounts a translations directory and gets no translations has been told nothing they will
+ * notice, and every configuration file here now fails the same way for the same reason. One rule is the
+ * only rule anybody can hold in their head, and `config/check.sh` plus a startup that refuses are
+ * cheaper than a label that silently never appeared.
  */
 package cz.mzk.iiif.gateway;
 
@@ -44,8 +51,8 @@ public final class TranslationDirectory {
 
     Path path = Path.of(directory.get());
     if (!Files.isDirectory(path)) {
-      LOG.warn("IIIF_TRANSLATIONS_DIR {} is not a directory; using the bundled languages", path);
-      return bundled;
+      // Not a warning: the operator set the variable, so they meant to mount something there.
+      throw new IllegalStateException("IIIF_TRANSLATIONS_DIR " + path + " is not a directory");
     }
 
     Map<String, Map<String, String>> overrides = new LinkedHashMap<>();
@@ -68,13 +75,11 @@ public final class TranslationDirectory {
         try (InputStream in = Files.newInputStream(file)) {
           overrides.put(language, Translations.parse(in));
         } catch (IOException | RuntimeException e) {
-          // One bad file must not stop the gateway starting.
-          LOG.warn("skipping translation file {}: {}", file, e.toString());
+          throw new IllegalStateException("could not read translation file " + file, e);
         }
       }
     } catch (IOException e) {
-      LOG.warn("could not list {}: {}", path, e.toString());
-      return bundled;
+      throw new IllegalStateException("could not read IIIF_TRANSLATIONS_DIR " + path, e);
     }
 
     if (overrides.isEmpty()) {
