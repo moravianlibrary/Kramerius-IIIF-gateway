@@ -191,8 +191,9 @@ are different; the build checks that the gateway pins the matching library versi
 
 ### Viewer dependencies
 
-- **Use one pinned container image for Mirador, Clover, and Universal Viewer.** Headless checks and the
-  human review page use the same assets and work without a CDN or fresh npm resolution.
+- **Build Mirador, Clover, and Universal Viewer once, in one pinned container stage.** The headless check
+  image and the human review image both copy the same assets from it and work without a CDN or fresh npm
+  resolution. Only the review image is pushed; the check image carries Playwright's browsers (2.5 GB).
 - **Do not load viewer dependencies from CDNs at run time.** Different dependency graphs made manual
   review and automated checks exercise different viewers.
 

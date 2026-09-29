@@ -36,10 +36,13 @@ COMMIT         := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown
 # ─── Dev database ─────────────────────────────────────────────────────────────
 DB_CONTAINER   ?= iiif-db
 VIEWER_PORT    ?= 18090
-VIEWER_IMAGE_NAME ?= iiif-viewers
-VIEWER_VERSION  ?= 1
+# Nested under the gateway's name because GitLab only accepts image paths inside an existing project.
+VIEWER_IMAGE_NAME ?= $(IMAGE)/viewers
+VIEWER_VERSION  ?= 1.0.0
 VIEWER_IMAGE    ?= localhost/$(VIEWER_IMAGE_NAME):$(VIEWER_VERSION)
 VIEWER_IMAGE_REF := $(if $(REGISTRY),$(REGISTRY)/,)$(VIEWER_IMAGE_NAME)
+# The same viewers plus Playwright's browsers — 2.5 GB, so it is built locally and not pushed.
+VIEWER_CHECK_IMAGE ?= localhost/$(IMAGE)/viewer-check:$(VIEWER_VERSION)
 # Where `smoke` and `viewer-check` expect to find a running gateway.
 SMOKE_BASE     ?= http://localhost:8080
 DB_NAME        ?= iiif
@@ -161,33 +164,36 @@ country-codes: ## Regenerate the MARC country-code list from id.loc.gov (needs n
 smoke: ## Hit live instances, one library per adapter (needs the gateway running + network)
 	IIIF_BASE=$(SMOKE_BASE) ./dev/smoke.sh
 
-viewer-check: viewer-image ## Load the manifests in all three pinned viewers and assert on the DOM
+viewer-check: viewer-check-image ## Load the manifests in all three pinned viewers and assert on the DOM
 	@# Depends on the image for the same reason viewer-open does: the harness pages live IN it, so
 	@# editing tests/viewer/pages and re-running would otherwise assert against the previous build.
 	@# Cached, the build is a second; uncached it is the thing you wanted anyway.
-	IIIF_BASE=$(SMOKE_BASE) ./dev/viewer-check.sh
+	IIIF_BASE=$(SMOKE_BASE) VIEWER_IMAGE=$(VIEWER_CHECK_IMAGE) ./dev/viewer-check.sh
 
 # The `up`/`logs` compose lifecycle arrives with deployment. Targets for things that do not exist yet
 # are noise.
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 
-viewer-image: ## Build the pinned viewer image (Mirador, Clover, Universal Viewer)
-	$(DOCKER) build -t $(VIEWER_IMAGE) -f tests/viewer/Containerfile tests/viewer
+viewer-image: ## Build the viewer review image: the menu and the pinned Mirador, Clover and UV
+	$(DOCKER) build --target review -t $(VIEWER_IMAGE) -f tests/viewer/Containerfile tests/viewer
 
-viewer-push: ## Push the pinned viewer image (requires REGISTRY=...)
+viewer-check-image: ## Build the viewer-check image: the same viewers plus Playwright's browsers
+	$(DOCKER) build --target harness -t $(VIEWER_CHECK_IMAGE) -f tests/viewer/Containerfile tests/viewer
+
+viewer-push: ## Push the viewer review image (requires REGISTRY=...)
 	$(if $(REGISTRY),,$(error REGISTRY is required))
 	$(DOCKER) tag $(VIEWER_IMAGE) $(VIEWER_IMAGE_REF):$(VIEWER_VERSION)
 	$(DOCKER) tag $(VIEWER_IMAGE) $(VIEWER_IMAGE_REF):latest
 	$(DOCKER) push $(VIEWER_IMAGE_REF):$(VIEWER_VERSION)
 	$(DOCKER) push $(VIEWER_IMAGE_REF):latest
 
-viewer-build-push: viewer-image viewer-push ## Build then push the pinned viewer image
+viewer-build-push: viewer-image viewer-push ## Build then push the viewer review image
 
 viewer-open: viewer-image ## Open the manifests in all three viewers, for a person (needs the gateway running)
-	@# The SAME image the assertions run against, so what a person reviews and what viewer-check asserts
-	@# on are the same build. Serving it from the container rather than python3 -m http.server is what
-	@# makes that true — the viewer files live in the image, not on the host.
+	@# The same /viewers the assertions run against — both images copy it from one build stage — so what
+	@# a person reviews and what viewer-check asserts on are the same build. tests/viewer is mounted over
+	@# the baked /work, so editing index.html needs no rebuild.
 	@echo "serving tests/viewer on http://localhost:$(VIEWER_PORT) — ctrl-c to stop"
 	@echo "the gateway must be running at $(SMOKE_BASE)"
 	@command -v xdg-open >/dev/null && (sleep 2; xdg-open http://localhost:$(VIEWER_PORT)/ >/dev/null 2>&1) &
@@ -268,7 +274,7 @@ clean-all: clean clean-images db-down ## Remove everything this repo created
 .PHONY: help lib-install set-lib-version \
 	format format-check lint typecheck version-check config-check check \
 	test test-integration capabilities libraries \
-	smoke viewer-image viewer-push viewer-build-push viewer-check viewer-open \
+	smoke viewer-image viewer-check-image viewer-push viewer-build-push viewer-check viewer-open \
 	db-up db-down db-size \
 	build push build-push set-version tag-version tag-latest release \
 	clean clean-images clean-all

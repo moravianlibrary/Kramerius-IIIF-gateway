@@ -12,16 +12,22 @@
 # build derives its own base directory from the script tag that loaded it (webpack automatic publicPath),
 # so the tree can be mounted at any path with no configuration. Copying dist/ is the whole integration.
 #
-# WHY ONE IMAGE FOR BOTH USES. The eyeball page and the assertion harness used to load different viewers:
+# WHY ONE BUILD FOR BOTH USES. The eyeball page and the assertion harness used to load different viewers:
 # tests/viewer/index.html took Mirador 3.3.0 from unpkg and Clover's WEB COMPONENT from jsdelivr, while
 # the check pinned Mirador 3.4.3 and built Clover's REACT component through esbuild. A human was
 # therefore reviewing something the assertions had never run against, and a screenshot in out/ came from
-# a different build than the page beside it. One image, one set of files, both modes.
+# a different build than the page beside it. One build stage, one set of files, both modes.
 #
-#   make viewer-image     build this
-#   make viewer-check     headless, DOM assertions, screenshots
-#   make viewer-open      the same files, served for a person to click through
-FROM mcr.microsoft.com/playwright:v1.49.0-noble
+# WHY TWO IMAGES FROM IT. The harness needs Playwright's browsers, which are 2.5 GB of the 2.58; the
+# review page needs a static server. Shipping the browsers to a host that only serves the menu made the
+# deployable image 850 MB compressed for 37 MB of viewers. Both targets COPY /viewers from the same
+# stage, so what a person reviews and what the check asserts on are still byte-identical.
+#
+#   make viewer-image         --target review: the menu and the three viewers (what gets pushed)
+#   make viewer-check-image   --target harness: the same files plus Playwright and its browsers
+#   make viewer-check         headless, DOM assertions, screenshots
+#   make viewer-open          the review image, for a person to click through
+FROM docker.io/library/node:22-alpine AS viewers
 
 # Pinned deliberately. Bump here, rebuild, and re-run to see what moved — which makes a viewer upgrade a
 # reviewable commit instead of a silent resolution.
@@ -30,16 +36,11 @@ ARG CLOVER_VERSION=2.14.0
 ARG UV_VERSION=4.0.25
 ARG REACT_VERSION=18.3.1
 ARG ESBUILD_VERSION=0.24.0
-# Must match the base image tag: the image ships the BROWSERS at /ms-playwright but not the node package,
-# so the two are pinned together or the driver and the browser disagree about their protocol.
-ARG PLAYWRIGHT_VERSION=1.49.0
 
 COPY pages/ /build/pages/
 
-# ONE LAYER, AND THE node_modules ARE DISCARDED IN IT. Three RUN steps would commit three layers each
-# holding its own node_modules — some hundreds of megabytes of build input that the finished image never
-# reads. Everything the viewers need is a handful of static files; installing, building and throwing the
-# tree away inside a single step is what keeps this a thin layer on the Playwright base.
+# The node_modules never leave this stage: both images copy only /viewers out of it, so the hundreds of
+# megabytes of build input stay behind in a layer nothing ships.
 #
 # THREE INSTALLS, THREE DIRECTORIES, because the viewers do not share a dependency graph and pretending
 # they do fails outright: Mirador 3.4.3 peer-depends on react ^16.8.3 while Clover needs React 18, so one
@@ -76,24 +77,49 @@ RUN set -eux; \
       --define:process.env.NODE_ENV='"production"' --log-level=warning; \
     \
     cp /build/pages/mirador.html /build/pages/clover.html /viewers/; \
-    \
-    # PLAYWRIGHT LAST, AND IT ENDS UP AT /node_modules. check.mjs is an ES module under /work, and ESM
-    # resolution ignores NODE_PATH — it walks up from the importing file, so /node_modules is the first
-    # place above /work that this and any future harness file will find. It is installed in a
-    # subdirectory and moved because npm refuses to install into / ("Tracker idealTree already exists"),
-    # and it is done AFTER the viewers because a /node_modules present during their installs makes npm
-    # resolve upward into it and fail.
-    mkdir -p /build/harness && cd /build/harness; \
-    npm install --no-save --silent playwright@${PLAYWRIGHT_VERSION}; \
-    mv /build/harness/node_modules /node_modules; \
     printf '%s\n' \
       "mirador ${MIRADOR_VERSION}" \
       "clover ${CLOVER_VERSION}" \
       "universalviewer ${UV_VERSION}" \
-      > /viewers/VERSIONS; \
-    \
+      > /viewers/VERSIONS
+
+# ─── The assertion harness ────────────────────────────────────────────────────
+FROM mcr.microsoft.com/playwright:v1.49.0-noble AS harness
+
+# Must match the base image tag: the image ships the BROWSERS at /ms-playwright but not the node package,
+# so the two are pinned together or the driver and the browser disagree about their protocol.
+ARG PLAYWRIGHT_VERSION=1.49.0
+
+COPY --from=viewers /viewers/ /viewers/
+
+RUN set -eux; \
+    # PLAYWRIGHT AT /node_modules. check.mjs is an ES module under /work, and ESM
+    # resolution ignores NODE_PATH — it walks up from the importing file, so /node_modules is the first
+    # place above /work that this and any future harness file will find. It is installed in a
+    # subdirectory and moved because npm refuses to install into / ("Tracker idealTree already exists").
+    mkdir -p /build/harness && cd /build/harness; \
+    npm install --no-save --silent playwright@${PLAYWRIGHT_VERSION}; \
+    mv /build/harness/node_modules /node_modules; \
     rm -rf /build /root/.npm
 
 # The harness itself is mounted at run time rather than baked, because it changes far more often than the
 # viewers do and rebuilding a 2.5 GB image to edit an assertion would be absurd.
 WORKDIR /work
+
+# ─── The review page ──────────────────────────────────────────────────────────
+# Last, so a plain build with no --target produces the image that gets deployed.
+#
+# serve.mjs rather than a static server, because the menu is configured at RUN time: it answers
+# /review-config.json from IIIF_VIEWER_TEST_URL, IIIF_VIEWER_PRODUCTION_URL and IIIF_VIEWER_DOCUMENTS,
+# so one image serves any deployment. `make viewer-open` mounts tests/viewer over /work, so editing
+# index.html needs no rebuild there.
+FROM docker.io/library/node:22-alpine AS review
+
+COPY --from=viewers /viewers/ /viewers/
+COPY index.html serve.mjs /work/
+
+# node, by UID: Kubernetes can only verify runAsNonRoot against a number.
+USER 1000
+WORKDIR /work
+EXPOSE 8080
+CMD ["node", "/work/serve.mjs", "8080"]

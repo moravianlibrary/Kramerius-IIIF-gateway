@@ -98,3 +98,7 @@ createServer((request, response) => {
   console.log(readFileSync('/viewers/VERSIONS', 'utf8').trim());
   console.log(`\nviewer review page on http://localhost:${port}/`);
 });
+
+// As PID 1 in a container, node gets no default signal handlers, so without these `podman stop` and a
+// Kubernetes rollout wait out their grace period and then kill it.
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => process.exit(0));

@@ -26,13 +26,13 @@ OUT="${VIEWER_OUT:-tests/viewer/out}"
 ENGINE="${DOCKER:-$(command -v podman || command -v docker)}"
 
 # The viewers are pinned in tests/viewer/Containerfile and baked into this image, so the versions are a
-# property of the image rather than of whatever npm resolved this morning. `make viewer-image` builds it;
-# it prints its own version list at the top of every run.
-VIEWER_IMAGE="${VIEWER_IMAGE:-localhost/iiif-viewers:1}"
+# property of the image rather than of whatever npm resolved this morning. `make viewer-check-image`
+# builds it; it prints its own version list at the top of every run.
+VIEWER_IMAGE="${VIEWER_IMAGE:-localhost/iiif-gateway/viewer-check:1.0.0}"
 
 [[ -n "$ENGINE" ]] || { echo "viewer-check needs podman or docker"; exit 2; }
 "$ENGINE" image exists "$VIEWER_IMAGE" 2>/dev/null \
-  || { echo "no $VIEWER_IMAGE — run: make viewer-image"; exit 2; }
+  || { echo "no $VIEWER_IMAGE — run: make viewer-check-image"; exit 2; }
 command -v jq >/dev/null || { echo "viewer-check needs jq"; exit 2; }
 
 curl -fsS --max-time 10 "$BASE/version" >/dev/null 2>&1 \

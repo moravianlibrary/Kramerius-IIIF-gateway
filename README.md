@@ -83,7 +83,8 @@ make build              # fat jar and container image
 `make viewer-open` serves the review page. Its `test` and `production` gateway choices can be set with
 `IIIF_VIEWER_TEST_URL` and `IIIF_VIEWER_PRODUCTION_URL`. Set `IIIF_VIEWER_DOCUMENTS` to a JSON array of
 `{"library":"…","pid":"…","label":"…"}` objects to replace the predefined documents; any library
-and PID can also be entered directly in the page.
+and PID can also be entered directly in the page. `make viewer-build-push REGISTRY=…` publishes the same
+page as a small image (`iiif-gateway/viewers`) that listens on port 8080 and takes the same variables.
 
 `make db-up` creates an empty database. Start `web` or `worker` with `IIIF_DB_URL` once before using
 `make db-size`, because the gateway creates the cache tables during its database-backed startup.
