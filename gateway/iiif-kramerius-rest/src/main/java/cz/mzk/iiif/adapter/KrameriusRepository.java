@@ -22,7 +22,6 @@ import cz.mzk.iiif.adapter.v50.Kramerius5Order;
 import cz.mzk.iiif.document.ContentLocator;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.document.LibraryProfile;
-import cz.mzk.iiif.kramerius.ChildKind;
 import cz.mzk.iiif.spi.CatalogueLink;
 import cz.mzk.iiif.spi.DocumentSource;
 import cz.mzk.iiif.spi.ImageSizeSource;
@@ -124,33 +123,57 @@ public final class KrameriusRepository implements Repository, DocumentSource {
     }
     // K5 indexes no per-kind child counts at all, so a promotion there has to be answered by
     // asking.
-    // One query for a model that would otherwise be typed wrong is a fair trade, and monograph is
-    // the
+    // One query for a model that would otherwise be typed wrong is a fair trade; monograph is the
     // only model that promotes.
-    ChildKind kind = found.get().promoteWhen().orElseThrow();
+    String kind = found.get().promoteWhen().orElseThrow();
     if (!adapter.schema().supportsCursorMark()) {
       return !children(SolrRecords.text(doc, records.pidField()).orElse(""), kind).isEmpty();
     }
 
     return switch (kind) {
-      case MONOGRAPH_UNITS -> SolrRecords.integer(doc, "count_monograph_unit").orElse(0) > 0;
-      case PERIODICAL_VOLUMES -> SolrRecords.integer(doc, "count_volume").orElse(0) > 0;
-      case PERIODICAL_ISSUES -> SolrRecords.integer(doc, "count_issue").orElse(0) > 0;
-      case SOUND_UNITS -> SolrRecords.integer(doc, "count_sound_unit").orElse(0) > 0;
-      case PAGES -> SolrRecords.integer(doc, "count_page").orElse(0) > 0;
-      case TRACKS, CONVOLUTE_PARTS -> false;
+      case "MONOGRAPH_UNITS" -> SolrRecords.integer(doc, "count_monograph_unit").orElse(0) > 0;
+      case "PERIODICAL_VOLUMES" -> SolrRecords.integer(doc, "count_volume").orElse(0) > 0;
+      case "PERIODICAL_ISSUES" -> SolrRecords.integer(doc, "count_issue").orElse(0) > 0;
+      case "SOUND_UNITS" -> SolrRecords.integer(doc, "count_sound_unit").orElse(0) > 0;
+      case "PAGES" -> SolrRecords.integer(doc, "count_page").orElse(0) > 0;
+      case "TRACKS", "CONVOLUTE_PARTS" -> false;
+      default -> false;
     };
   }
 
-  @Override
-  public List<DocumentRecord> children(String pid, ChildKind kind) {
+  private List<DocumentRecord> children(String pid, String kind) {
     SolrSchema schema = adapter.schema();
-    boolean fostered = kind == ChildKind.PAGES && fostersPages(pid);
+    boolean fostered = "PAGES".equals(kind) && fostersPages(pid);
 
     String filter = schema.childFilter(pid, kind, fostered) + " AND " + schema.modelFilter(kind);
     return map(
         walkChildren(filter, schema.childSort(kind, solr.uniqueKey()), fieldsFor(schema, kind)),
         kind);
+  }
+
+  @Override
+  public List<DocumentRecord> pages(String pid) {
+    return children(pid, "PAGES");
+  }
+
+  @Override
+  public List<DocumentRecord> members(DocumentRecord document) {
+    return adapter
+        .models()
+        .require(document.model())
+        .children()
+        .map(kind -> children(document.pid(), kind))
+        .orElseGet(List::of);
+  }
+
+  @Override
+  public List<DocumentRecord> mediaUnits(String pid) {
+    return children(pid, "SOUND_UNITS");
+  }
+
+  @Override
+  public List<DocumentRecord> tracks(String soundUnitPid) {
+    return children(soundUnitPid, "TRACKS");
   }
 
   /** The same filter {@link #children} builds for pages, narrowed to the tiled ones and counted. */
@@ -159,9 +182,9 @@ public final class KrameriusRepository implements Repository, DocumentSource {
     SolrSchema schema = adapter.schema();
     boolean fostered = fostersPages(pid);
     String filter =
-        schema.childFilter(pid, ChildKind.PAGES, fostered)
+        schema.childFilter(pid, "PAGES", fostered)
             + " AND "
-            + schema.modelFilter(ChildKind.PAGES)
+            + schema.modelFilter("PAGES")
             + " AND "
             + schema.tiledFilter();
     return solr.count(filter);
@@ -183,7 +206,7 @@ public final class KrameriusRepository implements Repository, DocumentSource {
             .map(model -> "-" + schema.modelField() + ":" + model)
             .collect(java.util.stream.Collectors.joining(" AND "));
     String filter =
-        schema.childFilter(pid, ChildKind.PERIODICAL_VOLUMES, false)
+        schema.childFilter(pid, "PERIODICAL_VOLUMES", false)
             + (components.isEmpty() ? "" : " AND " + components);
     // No kind, so no per-kind sort: title order, the same as a virtual collection's members.
     return map(
@@ -223,20 +246,20 @@ public final class KrameriusRepository implements Repository, DocumentSource {
     return List.copyOf(docs);
   }
 
-  private static List<String> fieldsFor(SolrSchema schema, ChildKind kind) {
+  private static List<String> fieldsFor(SolrSchema schema, String kind) {
     return switch (kind) {
-      case PAGES -> schema.pageFields();
-      case TRACKS, SOUND_UNITS -> schema.componentFields();
+      case "PAGES" -> schema.pageFields();
+      case "TRACKS", "SOUND_UNITS" -> schema.componentFields();
       default -> schema.documentFields();
     };
   }
 
-  private List<DocumentRecord> map(List<JsonNode> docs, ChildKind kind) {
+  private List<DocumentRecord> map(List<JsonNode> docs, String kind) {
     List<DocumentRecord> mapped = new ArrayList<>(docs.size());
     for (JsonNode doc : docs) {
-      if (kind == ChildKind.PAGES) {
+      if ("PAGES".equals(kind)) {
         mapped.add(records.page(doc));
-      } else if (kind == ChildKind.TRACKS || kind == ChildKind.SOUND_UNITS) {
+      } else if ("TRACKS".equals(kind) || "SOUND_UNITS".equals(kind)) {
         // Components have no manifest, so the model table refuses them — correctly. They still
         // belong inside a recording's manifest, which is why they get their own mapping.
         mapped.add(records.component(doc));

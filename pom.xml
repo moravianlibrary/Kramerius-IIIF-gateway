@@ -17,7 +17,7 @@
   dependency direction is one way — gateway modules depend on library artifacts, never the reverse,
   and with the projects separated the build enforces it rather than a convention doing so.
 
-  Module-level reasoning is in docs/DESIGN.md.
+  Durable implementation rationale is in docs/DECISIONS.md.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

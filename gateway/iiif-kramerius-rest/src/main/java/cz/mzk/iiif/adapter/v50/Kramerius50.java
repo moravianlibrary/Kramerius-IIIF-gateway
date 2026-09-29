@@ -55,9 +55,9 @@ public final class Kramerius50 implements KrameriusAdapter {
   /**
    * Refuses anything at 6 or above.
    *
-   * <p>Without this the K5 floor would claim every K7 instance too, because floor-based selection
-   * is "at or above". K5 is the one adapter that is not open-ended, and that is permanent rather
-   * than an oversight: Kramerius went 5 -> 7 and there will be no 6. See docs/DECISIONS.md.
+   * <p>Without this, K5 would also report support for K7 because the default is "at or above". The
+   * registry currently selects the higher K7 floor first, but this exact check makes K5's contract
+   * explicit. Kramerius went 5 -> 7 and there will be no 6. See docs/DECISIONS.md.
    */
   @Override
   public boolean supports(Version version) {

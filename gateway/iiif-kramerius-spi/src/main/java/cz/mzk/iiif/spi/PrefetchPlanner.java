@@ -7,7 +7,7 @@
  *
  * NO DEPTH OR SIZE LIMIT, on purpose. The caller records completion per document, so a re-run skips
  * finished subtrees in one lookup each and an interrupted walk resumes rather than restarting. Limits
- * would be protecting against a cost that idempotence already removes. See docs/DESIGN.md.
+ * would be protecting against a cost that idempotence already removes.
  *
  * Pure: it reads the document tree and returns a plan. Nothing is fetched or stored here.
  */
@@ -22,8 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import cz.mzk.iiif.document.DocumentRecord;
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 public final class PrefetchPlanner {
 
@@ -70,8 +69,8 @@ public final class PrefetchPlanner {
       }
       DocumentRecord document = found.get();
 
-      DocumentShape shape = document.shape();
-      if (shape == DocumentShape.PAGES || shape == DocumentShape.SOUND_RECORDING) {
+      IiifStructure shape = document.shape();
+      if (shape == IiifStructure.PAGED_MANIFEST || shape == IiifStructure.MEDIA_MANIFEST) {
         DocumentPages pages = pagesOf(repository, current);
         if (!pages.isEmpty()) {
           plan.add(pages);
@@ -87,7 +86,7 @@ public final class PrefetchPlanner {
   /** The tiled pages of one document, without recursing. */
   public static DocumentPages pagesOf(Repository repository, String pid) {
     List<String> tiled =
-        repository.documents().children(pid, ChildKind.PAGES).stream()
+        repository.documents().pages(pid).stream()
             .filter(DocumentRecord::hasTiles)
             .map(DocumentRecord::pid)
             .toList();
@@ -104,14 +103,10 @@ public final class PrefetchPlanner {
     String pid = document.pid();
     List<DocumentRecord> children =
         switch (document.shape()) {
-          case MEMBERS ->
-              document
-                  .childKind()
-                  .map(kind -> repository.documents().children(pid, kind))
-                  .orElseGet(List::of);
-          case COLLECTION_MEMBERS -> repository.documents().collectionMembers(pid);
+          case CHILD_COLLECTION -> repository.documents().members(document);
+          case VIRTUAL_COLLECTION -> repository.documents().collectionMembers(pid);
           // The page-bearing shapes are handled by the caller and never reach here.
-          case PAGES, SOUND_RECORDING -> List.of();
+          case PAGED_MANIFEST, MEDIA_MANIFEST -> List.of();
         };
     return children.stream().map(DocumentRecord::pid).toList();
   }

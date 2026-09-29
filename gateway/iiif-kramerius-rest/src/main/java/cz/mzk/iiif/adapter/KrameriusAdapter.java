@@ -7,7 +7,7 @@
  *
  * The alternative — a switch in a factory — puts the knowledge of which adapter handles what somewhere
  * other than the adapter. Here each one answers for itself, so adding a boundary is a registration plus
- * a subclass that overrides only what actually changed. See docs/DESIGN.md.
+ * a subclass that overrides only what actually changed.
  *
  * A boundary earns an adapter only when it affects a field we USE. coords.point arrives at 7.2.1.1 and is
  * deliberately ignored: it is a copyField of coords.bbox.center, which every K7 instance already has, so

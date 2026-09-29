@@ -14,7 +14,6 @@
  *   supplement is the inverse — part number 100%, part name 81%, authors 5%;
  *   publication places are 98% on monograph and 0-1% on everything else.
  *
- * See docs/BEHAVIOUR.md for the coverage table.
  */
 package cz.mzk.iiif.build;
 
@@ -94,8 +93,8 @@ public final class MetadataRows {
    *
    * <p>Unknown names are shown as-is on purpose: `dnnto` and `dnntt` are established abbreviations
    * that a Czech reader recognises, and inventing an expansion for a legal term would be worse than
-   * the abbreviation. An instance that publishes its own licence texts supplies them through
-   * LibraryProfile.licenseTexts, which is what requiredStatement uses.
+   * the abbreviation. An instance that publishes its own licence texts supplies them through the
+   * adapter's licence configuration.
    */
   public MetadataRows licenses(List<String> licenses) {
     return licenses(licenses, null);

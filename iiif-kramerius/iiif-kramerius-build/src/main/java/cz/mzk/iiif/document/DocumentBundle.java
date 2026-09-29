@@ -10,7 +10,7 @@
  * which meant level 2 could not exist without level 3. Pushing instead makes the construction rules a
  * pure function, which is both the point of the layering and why every test of them runs offline.
  *
- * Which children a shape needs is declared by DocumentShape at level 1, so a host does not have to
+ * Which children a shape needs is declared by IiifStructure at level 1, so a host does not have to
  * reverse-engineer it from the builder.
  */
 package cz.mzk.iiif.document;
@@ -18,7 +18,7 @@ package cz.mzk.iiif.document;
 import java.util.List;
 import java.util.Map;
 
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 public record DocumentBundle(
     LibraryProfile library,
@@ -33,8 +33,8 @@ public record DocumentBundle(
     /** Child documents this becomes a Collection of. Empty for page shapes. */
     List<DocumentRecord> members,
 
-    /** Sound units with their tracks, in order. Empty for everything but a recording. */
-    List<SoundUnit> soundUnits,
+    /** Media units with their tracks, in order. Empty for everything but a recording. */
+    List<MediaUnit> mediaUnits,
 
     /**
      * Page dimensions, by page pid.
@@ -50,24 +50,24 @@ public record DocumentBundle(
   /**
    * What a host must gather for a document of this shape.
    *
-   * <p>Re-exposed from DocumentShape so a host filling a bundle has one place to look rather than
+   * <p>Re-exposed from IiifStructure so a host filling a bundle has one place to look rather than
    * having to know that the answer lives at level 1.
    */
-  public static java.util.Set<DocumentShape.Part> requires(DocumentShape shape) {
+  public static java.util.Set<IiifStructure.Part> requires(IiifStructure shape) {
     return shape.requires();
   }
 
   /** Whether everything this document's shape needs is actually present. */
   public boolean isComplete() {
-    java.util.Set<DocumentShape.Part> required = requires(document.shape());
-    return (!required.contains(DocumentShape.Part.PAGES) || !pages.isEmpty() || document.hasPdf())
-        && (!required.contains(DocumentShape.Part.MEMBERS) || !members.isEmpty())
-        && (!required.contains(DocumentShape.Part.SOUND_UNITS) || !soundUnits.isEmpty());
+    java.util.Set<IiifStructure.Part> required = requires(document.shape());
+    return (!required.contains(IiifStructure.Part.PAGES) || !pages.isEmpty() || document.hasPdf())
+        && (!required.contains(IiifStructure.Part.MEMBERS) || !members.isEmpty())
+        && (!required.contains(IiifStructure.Part.MEDIA_UNITS) || !mediaUnits.isEmpty());
   }
 
-  /** One sound unit and the tracks under it. */
-  public record SoundUnit(DocumentRecord unit, List<DocumentRecord> tracks) {
-    public SoundUnit {
+  /** One media unit and the tracks under it. */
+  public record MediaUnit(DocumentRecord unit, List<DocumentRecord> tracks) {
+    public MediaUnit {
       tracks = List.copyOf(tracks);
     }
   }
@@ -75,7 +75,7 @@ public record DocumentBundle(
   public DocumentBundle {
     pages = List.copyOf(pages);
     members = List.copyOf(members);
-    soundUnits = List.copyOf(soundUnits);
+    mediaUnits = List.copyOf(mediaUnits);
     sizes = Map.copyOf(sizes);
   }
 
@@ -89,7 +89,7 @@ public record DocumentBundle(
     private final DocumentRecord document;
     private List<DocumentRecord> pages = List.of();
     private List<DocumentRecord> members = List.of();
-    private List<SoundUnit> soundUnits = List.of();
+    private List<MediaUnit> mediaUnits = List.of();
     private Map<String, ImageSize> sizes = Map.of();
     private String catalogueUrl;
 
@@ -109,8 +109,8 @@ public record DocumentBundle(
       return this;
     }
 
-    public Builder soundUnits(List<SoundUnit> value) {
-      this.soundUnits = value == null ? List.of() : value;
+    public Builder mediaUnits(List<MediaUnit> value) {
+      this.mediaUnits = value == null ? List.of() : value;
       return this;
     }
 
@@ -131,7 +131,7 @@ public record DocumentBundle(
           document,
           pages,
           members,
-          soundUnits,
+          mediaUnits,
           sizes,
           java.util.Optional.ofNullable(catalogueUrl));
     }

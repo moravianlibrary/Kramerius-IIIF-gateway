@@ -22,28 +22,28 @@
 
   "models": {
     "monograph": {
-      "shape": "PAGES",
+      "shape": "PAGED_MANIFEST",
       "promoteTo": "monographcollection",
       "promoteWhen": "MONOGRAPH_UNITS"
     },
-    "monographcollection": { "shape": "MEMBERS", "children": "MONOGRAPH_UNITS" },
-    "monographunit": { "shape": "PAGES", "hasAncestors": true },
+    "monographcollection": { "shape": "CHILD_COLLECTION", "children": "MONOGRAPH_UNITS" },
+    "monographunit": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
 
-    "map": { "shape": "PAGES" },
-    "graphic": { "shape": "PAGES" },
-    "sheetmusic": { "shape": "PAGES" },
+    "map": { "shape": "PAGED_MANIFEST" },
+    "graphic": { "shape": "PAGED_MANIFEST" },
+    "sheetmusic": { "shape": "PAGED_MANIFEST" },
 
-    "periodical": { "shape": "MEMBERS", "children": "PERIODICAL_VOLUMES" },
+    "periodical": { "shape": "CHILD_COLLECTION", "children": "PERIODICAL_VOLUMES" },
     "periodicalvolume": {
-      "shape": "MEMBERS",
+      "shape": "CHILD_COLLECTION",
       "children": "PERIODICAL_ISSUES",
       "hasAncestors": true
     },
-    "periodicalitem": { "shape": "PAGES", "hasAncestors": true },
-    "supplement": { "shape": "PAGES", "hasAncestors": true },
+    "periodicalitem": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
+    "supplement": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
 
-    "article": { "shape": "PAGES", "hasAncestors": true },
-    "internalpart": { "shape": "PAGES", "hasAncestors": true }
+    "article": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
+    "internalpart": { "shape": "PAGED_MANIFEST", "hasAncestors": true }
   },
 
   "_componentsComment": [

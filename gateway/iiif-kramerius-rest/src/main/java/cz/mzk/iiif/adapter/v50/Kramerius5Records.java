@@ -28,7 +28,7 @@ import cz.mzk.iiif.adapter.SolrRecords;
 import cz.mzk.iiif.build.MetadataRows;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.i18n.Translations;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 import cz.mzk.iiif.presentation.LanguageMap;
 
@@ -81,7 +81,6 @@ public final class Kramerius5Records implements RecordMapper {
             .metadata(metadata(doc, resolved))
             .hasPdf(text(doc, "img_full_mime").filter("application/pdf"::equals).isPresent());
 
-    resolved.children().ifPresent(record::childKind);
     integer(doc, "pages_count").ifPresent(record::pageCount);
     modified(doc).ifPresent(record::modified);
     navDate(doc).ifPresent(record::navDate);
@@ -99,7 +98,8 @@ public final class Kramerius5Records implements RecordMapper {
         text(doc, "PID").orElseThrow(() -> new IllegalArgumentException("page with no PID"));
 
     DocumentRecord.Builder record =
-        DocumentRecord.of(pid, text(doc, "fedora.model").orElse("page"), DocumentShape.PAGES)
+        DocumentRecord.of(
+                pid, text(doc, "fedora.model").orElse("page"), IiifStructure.PAGED_MANIFEST)
             // K5 has no has_tiles. `viewable` is the closest thing it indexes, and it is what
             // decides
             // whether an image can be shown at all.
@@ -117,7 +117,7 @@ public final class Kramerius5Records implements RecordMapper {
         text(doc, "PID").orElseThrow(() -> new IllegalArgumentException("component with no PID"));
 
     return DocumentRecord.of(
-            pid, text(doc, "fedora.model").orElse("track"), DocumentShape.SOUND_RECORDING)
+            pid, text(doc, "fedora.model").orElse("track"), IiifStructure.MEDIA_MANIFEST)
         .label(LanguageMap.none(title(doc)))
         .build();
   }

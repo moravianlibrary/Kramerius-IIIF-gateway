@@ -2,7 +2,7 @@
 #   podman run iiif-gateway:2.0.0 web
 #   podman run iiif-gateway:2.0.0 worker
 #
-# Both roles share the same config and the same database. See docs/DESIGN.md.
+# Both roles share the same config and the same database. See docs/DECISIONS.md.
 
 FROM docker.io/library/maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /src

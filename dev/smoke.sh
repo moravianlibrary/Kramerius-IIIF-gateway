@@ -17,7 +17,7 @@
 # a nuisance to institutions that never asked to be a test target.
 #
 # Usage: make smoke                 the gateway must be running (IIIF_BASE=http://localhost:8080)
-#        IIIF_BASE=… ./scripts/smoke.sh
+#        IIIF_BASE=… ./dev/smoke.sh
 set -uo pipefail
 
 BASE="${IIIF_BASE:-http://localhost:8080}"
@@ -47,7 +47,7 @@ MZK_DOCUMENTS=(
   "article|uuid:022321ca-b665-46aa-8ee1-88adb67f73ea"
   "internalpart|uuid:2fc6e2a0-8982-11dd-9329-000d606f5dc6"
   "picture|uuid:062ada22-b567-451e-9310-e1e2e2343f08"
-  "soundrecording|uuid:f40754db-a439-4321-9441-3c008a4200e6"
+  "soundrecording|uuid:fbf5efba-ff5f-4921-aee6-2d7f4141561b"
   "convolute|uuid:1001534e-de50-4ef5-8213-4923df8a516c"
   "collection|uuid:6c17b0cf-8c49-48d3-a9e9-b64f154c3f23"
 )

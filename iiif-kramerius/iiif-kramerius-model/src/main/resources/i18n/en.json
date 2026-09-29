@@ -1,5 +1,10 @@
 {
   "attribution.label": "Provided by",
+  "access.conditions": "Access conditions",
+  "access.open": "Available online",
+  "access.login": "Available after sign-in",
+  "access.terminal": "Available at library terminals",
+  "access.restricted": "Access conditions apply",
   "collection.pageOf": "{0} (page {1})",
   "language.---": "No linguistic content",
   "language.aar": "Afar",

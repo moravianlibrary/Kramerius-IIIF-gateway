@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.document.ImageSize;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 class CachedImageSizesTest {
 
@@ -94,7 +94,7 @@ class CachedImageSizesTest {
   /** The page as the request path sees it: a record, which is where `modified` lives. */
   private static List<DocumentRecord> page(Instant modified) {
     DocumentRecord.Builder builder =
-        DocumentRecord.of(PAGE, "page", DocumentShape.PAGES).hasTiles(true);
+        DocumentRecord.of(PAGE, "page", IiifStructure.PAGED_MANIFEST).hasTiles(true);
     if (modified != null) {
       builder.modified(modified);
     }

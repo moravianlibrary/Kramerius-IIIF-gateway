@@ -26,7 +26,6 @@ package cz.mzk.iiif.adapter.v50;
 import java.util.List;
 
 import cz.mzk.iiif.adapter.SolrSchema;
-import cz.mzk.iiif.kramerius.ChildKind;
 
 public final class Solr5Schema extends SolrSchema {
 
@@ -109,7 +108,7 @@ public final class Solr5Schema extends SolrSchema {
   }
 
   @Override
-  public String childFilter(String parentPid, ChildKind kind, boolean fostered) {
+  public String childFilter(String parentPid, String kind, boolean fostered) {
     // K5 has no foster relationship: a page belongs to exactly one parent.
     return "parent_pid:" + quote(parentPid);
   }
@@ -122,7 +121,7 @@ public final class Solr5Schema extends SolrSchema {
    * once the rows are in hand.
    */
   @Override
-  public String childSort(ChildKind kind, String uniqueKey) {
+  public String childSort(String kind, String uniqueKey) {
     return null;
   }
 

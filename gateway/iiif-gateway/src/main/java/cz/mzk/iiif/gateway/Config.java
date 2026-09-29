@@ -87,7 +87,7 @@ public record Config(
      * it says nothing about whether an instance can actually be served. `mendelu` 5.3.2 is the
      * worked example: its Solr answers 500 to an image probe and returns no `nextCursorMark` at
      * all, so it has no usable Image API and its dimension sync cannot be walked —
-     * `scripts/libraries.py` already drops it from the generated static list for the first reason.
+     * `dev/libraries.py` already drops it from the generated static list for the first reason.
      * Registry mode reads no such file, so without this it would go on being served.
      *
      * <p>Empty by default, and no code names an institution: which libraries a deployment carries
@@ -101,7 +101,7 @@ public record Config(
    *
    * <p>From IIIF_LIBRARIES inline, or from IIIF_LIBRARIES_FILE — one record either way, so nothing
    * below this point knows which. Inline suits one library; a file suits fifty, and is what
-   * scripts/libraries.py generates.
+   * dev/libraries.py generates.
    *
    * @param names the institution's name by language tag, empty when the operator gave none. Without
    *     it there is nothing to call the institution but its code, which is not a name — see
@@ -224,7 +224,7 @@ public record Config(
         read.number("IIIF_IMAGE_INFO_CONCURRENCY", 10),
         database(read),
         Duration.ofMinutes(read.number("IIIF_SYNC_INTERVAL_MINUTES", 60)),
-        Duration.ofMinutes(read.number("IIIF_SYNC_OVERLAP_MINUTES", 10)),
+        Duration.ofMinutes(read.number("IIIF_SYNC_OVERLAP_MINUTES", 180)),
         read.number("IIIF_WORKER_BATCH", 32),
         read.number("IIIF_UPSTREAM_CONCURRENCY", 10),
         read.number("IIIF_UPSTREAM_RPS", 20),

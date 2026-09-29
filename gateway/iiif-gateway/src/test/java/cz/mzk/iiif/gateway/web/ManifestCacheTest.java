@@ -137,6 +137,19 @@ class ManifestCacheTest {
   }
 
   @Test
+  @DisplayName("the byte ceiling counts the UTF-8 response body, not Java characters")
+  void byteCeilingCountsUtf8() {
+    // Czech manifest text is commonly multi-byte UTF-8. Four č characters occupy eight response
+    // bytes, so a seven-byte cache cannot retain this entry. String.length() would incorrectly
+    // report four and let it through.
+    ManifestCache cache = new ManifestCache(10, HOUR, 7);
+    cache.put(LIBRARY, PID, "čččč", "etag", Manifests.Dimensions.COMPLETE);
+
+    assertThat(cache.get(LIBRARY, PID)).isEmpty();
+    assertThat(cache.bytes()).isZero();
+  }
+
+  @Test
   @DisplayName("evicting a document drops it, so DELETE …/dimensions is not defeated by this cache")
   void evictionByDocument() {
     // Without this, the one operator escape hatch for an image re-derived without its timestamp

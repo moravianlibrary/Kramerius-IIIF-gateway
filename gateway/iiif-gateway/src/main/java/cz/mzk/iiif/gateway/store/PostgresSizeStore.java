@@ -68,7 +68,15 @@ public final class PostgresSizeStore implements SizeStore, AutoCloseable {
       String sql = new String(in.readAllBytes(), StandardCharsets.UTF_8);
       try (Connection connection = pool.getConnection();
           Statement statement = connection.createStatement()) {
-        statement.execute(sql);
+        // IF NOT EXISTS does not serialize concurrent CREATE TABLE calls: two freshly started web
+        // and worker processes can both see no relation, then one loses while PostgreSQL creates
+        // the table's implicit row type. Keep the schema operation single-file across processes.
+        statement.execute("SELECT pg_advisory_lock(hashtext('iiif_size_store_schema'))");
+        try {
+          statement.execute(sql);
+        } finally {
+          statement.execute("SELECT pg_advisory_unlock(hashtext('iiif_size_store_schema'))");
+        }
       }
       LOG.info("size store schema applied");
     } catch (IOException e) {

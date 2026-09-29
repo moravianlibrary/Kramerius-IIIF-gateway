@@ -43,9 +43,9 @@ curl -fsS --max-time 10 "$BASE/version" >/dev/null 2>&1 \
 #
 # pid|expect-canvases|why
 DOCUMENTS=(
-  "uuid:71d66fe0-d986-11e2-9923-005056827e52|202|a paged monograph: openings, and every canvas sized"
-  "uuid:f40754db-a439-4321-9441-3c008a4200e6|20|a sound recording: 2 cover images and 18 audio tracks"
-  "uuid:a5af77e0-92c8-11f0-9940-005056827e51|248|a map: navPlace, so a viewer can put it somewhere"
+  "uuid:ba186e10-b4bb-11ec-b29b-005056827e52|2|a public paged monograph: openings, and every canvas sized"
+  "uuid:fbf5efba-ff5f-4921-aee6-2d7f4141561b|4|a public sound recording: 2 cover images and 2 audio tracks"
+  "uuid:0acfebfb-3a57-4d62-8b8f-9e58da01c96c|1|a public map: navPlace, so a viewer can put it somewhere"
 )
 
 mkdir -p "$OUT"
@@ -190,18 +190,6 @@ for (const testCase of cases) {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
 
-    // Upstream refusals, tracked separately from our own origin. 64 of MZK's 73 million pages are
-    // `accessibility: private`, so a viewer fetching info.json for one gets a 403 carrying Kramerius'
-    // HTML error page — and UV JSON-parses it and throws. That is a real thing to see, but it is not a
-    // manifest defect: the gateway declares the service because a reader WITH credentials can use it,
-    // and Kramerius implements no auth service for us to advertise instead. See docs/DECISIONS.md.
-    const refused = [];
-    page.on('response', (response) => {
-      if (response.status() >= 400 && !response.url().startsWith(ORIGIN)) {
-        refused.push(`${response.status()} ${response.url()}`);
-      }
-    });
-
     try {
       // The manifest URL is its own id — see the fetch loop.
       const manifestUrl = `${ORIGIN}/${testCase.file}`;
@@ -276,13 +264,8 @@ for (const testCase of cases) {
       await page.waitForTimeout(1500);
       await page.screenshot({ path: `/out/${viewer}-${testCase.pid}.png`, fullPage: false });
 
-      // A viewer that logged an exception may still have rendered; worth knowing either way. An
-      // exception that followed an upstream refusal is reported rather than failed — see `refused`.
-      const ours = errors.length > 0 && refused.length === 0;
-      record(viewer, testCase.pid, 'no uncaught JavaScript errors', !ours,
-        errors.length === 0
-          ? ''
-          : `${errors.slice(0, 2).join(' | ')}${refused.length ? ` (after ${refused[0]})` : ''}`);
+      record(viewer, testCase.pid, 'no uncaught JavaScript errors', errors.length === 0,
+        errors.length === 0 ? '' : errors.slice(0, 2).join(' | '));
     } catch (error) {
       record(viewer, testCase.pid, 'loads', false, error.message.split('\n')[0]);
     } finally {

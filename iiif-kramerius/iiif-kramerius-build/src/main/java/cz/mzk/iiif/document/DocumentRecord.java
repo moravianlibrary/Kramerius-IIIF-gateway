@@ -27,8 +27,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 import cz.mzk.iiif.presentation.LanguageMap;
 
@@ -50,15 +49,7 @@ public record DocumentRecord(
      * adds and removes models over releases, so the mapping is version-specific knowledge; this
      * level is told the answer rather than looking it up.
      */
-    DocumentShape shape,
-
-    /**
-     * Which children a MEMBERS document collects — volumes, issues, convolute parts.
-     *
-     * <p>Resolved by the adapter alongside the shape. The builder never needs it, because by then
-     * the members are gathered; whoever assembles the bundle does.
-     */
-    Optional<ChildKind> childKind,
+    IiifStructure shape,
 
     /** Skip members of this same model — Kramerius indexes a convolute as its own child. */
     boolean excludesOwnModel,
@@ -66,6 +57,7 @@ public record DocumentRecord(
     // Presentation: copied into the manifest, never inspected
     Map<String, List<String>> label,
     List<Iiif.KeyValue> metadata,
+    Iiif.KeyValue requiredStatement,
     Map<String, List<String>> summary,
 
     // Structure: the library decides things with these
@@ -101,7 +93,7 @@ public record DocumentRecord(
      */
     Optional<String> systemNumber,
 
-    /** Fedora lastModifiedDate. Decides cache staleness; see docs/DESIGN.md. */
+    /** Fedora lastModifiedDate. Decides cache staleness. */
     Optional<Instant> modified,
 
     /**
@@ -150,22 +142,19 @@ public record DocumentRecord(
    * discovers this only by asking, and the builder types the output from the shape, so the
    * correction has to travel on the record or the manifest comes out as an empty Collection anyway.
    *
-   * <p>The child kind goes with it: a document serving pages collects nothing else, and leaving a
-   * stale PERIODICAL_ISSUES on it would be a claim about children it does not have.
-   *
    * <p>Every other component is carried across unchanged. {@code DocumentRecordTest} asserts that
-   * one by one, because same-typed neighbours in a nineteen-component record are exactly where a
+   * one by one, because same-typed neighbours in a twenty-component record are exactly where a
    * hand-written copy goes wrong silently.
    */
-  public DocumentRecord withShape(DocumentShape newShape, Optional<ChildKind> newChildKind) {
+  public DocumentRecord withShape(IiifStructure newShape) {
     return new DocumentRecord(
         pid,
         model,
         newShape,
-        newChildKind,
         excludesOwnModel,
         label,
         metadata,
+        requiredStatement,
         summary,
         parent,
         hasPdf,
@@ -181,7 +170,7 @@ public record DocumentRecord(
         navDate);
   }
 
-  public static Builder of(String pid, String model, DocumentShape shape) {
+  public static Builder of(String pid, String model, IiifStructure shape) {
     return new Builder(pid, model, shape);
   }
 
@@ -193,12 +182,12 @@ public record DocumentRecord(
   public static final class Builder {
     private final String pid;
     private final String model;
-    private final DocumentShape shape;
-    private ChildKind childKind;
+    private final IiifStructure shape;
     private boolean excludesOwnModel;
 
     private Map<String, List<String>> label;
     private List<Iiif.KeyValue> metadata = List.of();
+    private Iiif.KeyValue requiredStatement;
     private Map<String, List<String>> summary;
     private Parent parent;
     private boolean hasPdf;
@@ -213,15 +202,10 @@ public record DocumentRecord(
     private Instant modified;
     private Instant navDate;
 
-    private Builder(String pid, String model, DocumentShape shape) {
+    private Builder(String pid, String model, IiifStructure shape) {
       this.pid = pid;
       this.model = model;
       this.shape = shape;
-    }
-
-    public Builder childKind(ChildKind value) {
-      this.childKind = value;
-      return this;
     }
 
     public Builder excludesOwnModel(boolean value) {
@@ -236,6 +220,12 @@ public record DocumentRecord(
 
     public Builder metadata(List<Iiif.KeyValue> value) {
       this.metadata = value == null ? List.of() : value;
+      return this;
+    }
+
+    /** A concise access condition which IIIF viewers must make visible. */
+    public Builder requiredStatement(Iiif.KeyValue value) {
+      this.requiredStatement = value;
       return this;
     }
 
@@ -314,10 +304,10 @@ public record DocumentRecord(
           pid,
           model,
           shape,
-          Optional.ofNullable(childKind),
           excludesOwnModel,
           label,
           metadata,
+          requiredStatement,
           summary,
           Optional.ofNullable(parent),
           hasPdf,

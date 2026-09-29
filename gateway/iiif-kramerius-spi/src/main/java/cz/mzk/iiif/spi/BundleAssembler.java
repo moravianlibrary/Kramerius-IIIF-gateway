@@ -19,8 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import cz.mzk.iiif.document.DocumentBundle;
 import cz.mzk.iiif.document.DocumentRecord;
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 public final class BundleAssembler {
 
@@ -64,8 +63,9 @@ public final class BundleAssembler {
     DocumentRecord declared = ((DocumentSource.Lookup.Document) found.get()).record();
 
     // Before the bundle is built, because the builder types the output from the record's shape: a
-    // volume gathered as pages but still shaped MEMBERS comes out as an empty Collection with the
-    // pages thrown away. The shape has to be corrected on the record, not just in the gathering.
+    // volume gathered as pages but still shaped CHILD_COLLECTION comes out as an empty Collection
+    // with the pages thrown away. The shape has to be corrected on the record, not just in the
+    // gathering.
     DocumentRecord document = actualShape(repository, declared);
 
     DocumentBundle.Builder bundle =
@@ -77,10 +77,10 @@ public final class BundleAssembler {
         .ifPresent(bundle::catalogueUrl);
 
     return switch (document.shape()) {
-      case PAGES -> withPages(repository, policy, bundle, pid);
-      case SOUND_RECORDING -> withSoundUnits(repository, policy, bundle, pid);
-      case MEMBERS -> withMembers(repository, bundle, document);
-      case COLLECTION_MEMBERS ->
+      case PAGED_MANIFEST -> withPages(repository, policy, bundle, pid);
+      case MEDIA_MANIFEST -> withMediaUnits(repository, policy, bundle, pid);
+      case CHILD_COLLECTION -> withMembers(repository, bundle, document);
+      case VIRTUAL_COLLECTION ->
           complete(bundle.members(repository.documents().collectionMembers(pid)).build());
     };
   }
@@ -102,28 +102,25 @@ public final class BundleAssembler {
   private static DocumentRecord actualShape(Repository repository, DocumentRecord declared) {
     String pid = declared.pid();
     return switch (declared.shape()) {
-      case MEMBERS -> {
-        if (!children(repository, declared).isEmpty()) {
+      case CHILD_COLLECTION -> {
+        if (!repository.documents().members(declared).isEmpty()) {
           yield declared;
         }
-        if (!repository.documents().children(pid, ChildKind.PAGES).isEmpty()) {
-          LOG.debug(
-              "{}: no {} but it has pages; serving it as a manifest", pid, declared.childKind());
-          yield declared.withShape(DocumentShape.PAGES, Optional.empty());
+        if (!repository.documents().pages(pid).isEmpty()) {
+          LOG.debug("{}: no {} but it has pages; serving it as a manifest", pid, "members");
+          yield declared.withShape(IiifStructure.PAGED_MANIFEST);
         }
-        // Neither the declared kind nor pages, but children all the same: a monograph whose child
-        // is
-        // another monograph rather than a monographunit (`monograph/monograph/page`, 1,254 pages at
-        // MZK). Still a collection — of whatever is actually under it.
+        // Neither the declared relation nor pages, but children all the same: a monograph whose
+        // child is another monograph rather than a monographunit (`monograph/monograph/page`,
+        // 1,254 pages at MZK). Still a collection — of whatever is actually under it.
         if (repository.documents().childDocuments(pid).isEmpty()) {
           yield declared;
         }
-        LOG.debug(
-            "{}: no {} but other child documents; collecting those", pid, declared.childKind());
-        yield declared.withShape(DocumentShape.MEMBERS, Optional.empty());
+        LOG.debug("{}: no {} but other child documents; collecting those", pid, "members");
+        yield declared.withShape(IiifStructure.CHILD_COLLECTION);
       }
-      case PAGES -> {
-        if (!repository.documents().children(pid, ChildKind.PAGES).isEmpty()) {
+      case PAGED_MANIFEST -> {
+        if (!repository.documents().pages(pid).isEmpty()) {
           yield declared;
         }
         List<DocumentRecord> members = repository.documents().childDocuments(pid);
@@ -132,68 +129,52 @@ public final class BundleAssembler {
         }
         LOG.debug(
             "{}: no pages but {} child documents; serving it as a collection", pid, members.size());
-        yield declared.withShape(DocumentShape.MEMBERS, Optional.empty());
+        yield declared.withShape(IiifStructure.CHILD_COLLECTION);
       }
       // A sound recording gathers units AND pages, so an empty half is not a wrong shape; a virtual
       // collection's membership is a filter rather than a parent relation and cannot be confused.
-      case SOUND_RECORDING, COLLECTION_MEMBERS -> declared;
+      case MEDIA_MANIFEST, VIRTUAL_COLLECTION -> declared;
     };
   }
 
   private static Result withPages(
       Repository repository, DimensionPolicy policy, DocumentBundle.Builder bundle, String pid) {
 
-    List<DocumentRecord> pages = repository.documents().children(pid, ChildKind.PAGES);
+    List<DocumentRecord> pages = repository.documents().pages(pid);
     PageDimensions.Resolved sizes = PageDimensions.resolve(repository, policy, pid, pages);
     return new Result.Found(
         bundle.pages(pages).sizes(sizes.sizes()).build(), sizes.complete(), sizes.unresolved());
   }
 
   /**
-   * The members a MEMBERS document collects — whatever kind its record now names, or every child
-   * document when the shape was corrected and the kind cleared.
+   * The members a CHILD_COLLECTION document collects — first through its declared relation, then
+   * through every direct child when that relation has no results.
    */
   private static Result withMembers(
       Repository repository, DocumentBundle.Builder bundle, DocumentRecord document) {
 
-    List<DocumentRecord> members =
-        document.childKind().isPresent()
-            ? children(repository, document)
-            : repository.documents().childDocuments(document.pid());
+    List<DocumentRecord> members = repository.documents().members(document);
+    if (members.isEmpty()) {
+      members = repository.documents().childDocuments(document.pid());
+    }
     return complete(bundle.members(members).build());
   }
 
-  private static Result withSoundUnits(
+  private static Result withMediaUnits(
       Repository repository, DimensionPolicy policy, DocumentBundle.Builder bundle, String pid) {
 
-    List<DocumentRecord> pages = repository.documents().children(pid, ChildKind.PAGES);
+    List<DocumentRecord> pages = repository.documents().pages(pid);
     PageDimensions.Resolved sizes = PageDimensions.resolve(repository, policy, pid, pages);
 
-    List<DocumentBundle.SoundUnit> units = new ArrayList<>();
-    for (DocumentRecord unit : repository.documents().children(pid, ChildKind.SOUND_UNITS)) {
-      units.add(
-          new DocumentBundle.SoundUnit(
-              unit, repository.documents().children(unit.pid(), ChildKind.TRACKS)));
+    List<DocumentBundle.MediaUnit> units = new ArrayList<>();
+    for (DocumentRecord unit : repository.documents().mediaUnits(pid)) {
+      units.add(new DocumentBundle.MediaUnit(unit, repository.documents().tracks(unit.pid())));
     }
 
     return new Result.Found(
-        bundle.pages(pages).soundUnits(units).sizes(sizes.sizes()).build(),
+        bundle.pages(pages).mediaUnits(units).sizes(sizes.sizes()).build(),
         sizes.complete(),
         sizes.unresolved());
-  }
-
-  /**
-   * The children a MEMBERS document collects.
-   *
-   * <p>The kind is on the record because the adapter resolved it along with the shape — a
-   * periodical collects volumes, a volume collects issues — and this level should not have to
-   * consult a table to find out.
-   */
-  private static List<DocumentRecord> children(Repository repository, DocumentRecord document) {
-    return document
-        .childKind()
-        .map(kind -> repository.documents().children(document.pid(), kind))
-        .orElseGet(List::of);
   }
 
   private static Result complete(DocumentBundle bundle) {

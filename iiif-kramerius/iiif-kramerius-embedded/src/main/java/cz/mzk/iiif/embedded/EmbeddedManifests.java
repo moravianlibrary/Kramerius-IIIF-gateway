@@ -6,12 +6,11 @@
  * registry, no per-library configuration. All of that exists because a gateway serves libraries it does
  * not own; an application serving its own repository has none of that problem.
  *
- * The one thing it does have to know is which children each shape needs, and DocumentShape.requires()
+ * The one thing it does have to know is which children each shape needs, and IiifStructure.requires()
  * states that so it need not be reverse-engineered from the builder.
  */
 package cz.mzk.iiif.embedded;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +25,7 @@ import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.document.ImageSize;
 import cz.mzk.iiif.document.LibraryProfile;
 import cz.mzk.iiif.i18n.Translations;
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 import cz.mzk.iiif.presentation.LanguageMap;
 
@@ -56,31 +54,29 @@ public final class EmbeddedManifests {
   /**
    * Fills the bundle with whatever this document's shape needs.
    *
-   * <p>Driven by DocumentShape.requires() rather than by a switch here, so a host cannot forget a
+   * <p>Driven by IiifStructure.requires() rather than by a switch here, so a host cannot forget a
    * part the builder will read.
    */
   private DocumentBundle gather(DocumentRecord document) {
     DocumentBundle.Builder bundle = DocumentBundle.of(library, urls, document);
 
-    for (DocumentShape.Part part : document.shape().requires()) {
+    for (IiifStructure.Part part : document.shape().requires()) {
       switch (part) {
         case PAGES -> {
-          List<DocumentRecord> pages = children(document.pid(), "page");
+          List<DocumentRecord> pages = records(kramerius.pagesOf(document.pid()));
           bundle.pages(pages).sizes(sizes(pages));
         }
-        case MEMBERS -> bundle.members(children(document.pid(), childModel(document.childKind())));
-        case SOUND_UNITS -> bundle.soundUnits(soundUnits(document.pid()));
+        case MEMBERS -> bundle.members(records(kramerius.membersOf(document.pid())));
+        case MEDIA_UNITS -> bundle.mediaUnits(mediaUnitsOf(document.pid()));
       }
     }
     return bundle.build();
   }
 
-  private List<DocumentBundle.SoundUnit> soundUnits(String pid) {
-    List<DocumentBundle.SoundUnit> units = new ArrayList<>();
-    for (DocumentRecord unit : children(pid, "soundunit")) {
-      units.add(new DocumentBundle.SoundUnit(unit, children(unit.pid(), "track")));
-    }
-    return units;
+  private List<DocumentBundle.MediaUnit> mediaUnitsOf(String pid) {
+    return kramerius.mediaUnitsOf(pid).stream()
+        .map(unit -> new DocumentBundle.MediaUnit(toRecord(unit.unit()), records(unit.tracks())))
+        .toList();
   }
 
   /**
@@ -103,12 +99,8 @@ public final class EmbeddedManifests {
     return sizes;
   }
 
-  private List<DocumentRecord> children(String pid, String model) {
-    List<DocumentRecord> records = new ArrayList<>();
-    for (KrameriusApi.SolrDocument child : kramerius.childrenOf(pid, model)) {
-      records.add(toRecord(child));
-    }
-    return records;
+  private List<DocumentRecord> records(List<KrameriusApi.SolrDocument> documents) {
+    return documents.stream().map(this::toRecord).toList();
   }
 
   /**
@@ -118,13 +110,13 @@ public final class EmbeddedManifests {
    * version-floor adapter and a configurable table. That is the simplification embedding buys.
    */
   private DocumentRecord toRecord(KrameriusApi.SolrDocument doc) {
-    DocumentShape shape =
+    IiifStructure shape =
         switch (doc.model()) {
-          case "periodical" -> DocumentShape.MEMBERS;
-          case "periodicalvolume" -> DocumentShape.MEMBERS;
-          case "collection" -> DocumentShape.COLLECTION_MEMBERS;
-          case "soundrecording" -> DocumentShape.SOUND_RECORDING;
-          default -> DocumentShape.PAGES;
+          case "periodical" -> IiifStructure.CHILD_COLLECTION;
+          case "periodicalvolume" -> IiifStructure.CHILD_COLLECTION;
+          case "collection" -> IiifStructure.VIRTUAL_COLLECTION;
+          case "soundrecording" -> IiifStructure.MEDIA_MANIFEST;
+          default -> IiifStructure.PAGED_MANIFEST;
         };
 
     DocumentRecord.Builder record =
@@ -135,7 +127,6 @@ public final class EmbeddedManifests {
 
     doc.first("page.placement").ifPresent(record::pagePlacement);
     doc.first("track.length").map(Double::parseDouble).ifPresent(record::trackLength);
-    childKindFor(doc.model()).ifPresent(record::childKind);
     return record.build();
   }
 
@@ -145,28 +136,6 @@ public final class EmbeddedManifests {
         .translated("metadata.documentType", "model." + doc.model())
         .texts("metadata.author", doc.all("authors"))
         .build();
-  }
-
-  private static Optional<ChildKind> childKindFor(String model) {
-    return switch (model) {
-      case "periodical" -> Optional.of(ChildKind.PERIODICAL_VOLUMES);
-      case "periodicalvolume" -> Optional.of(ChildKind.PERIODICAL_ISSUES);
-      default -> Optional.empty();
-    };
-  }
-
-  private static String childModel(Optional<ChildKind> kind) {
-    return kind.map(
-            k ->
-                switch (k) {
-                  case PERIODICAL_VOLUMES -> "periodicalvolume";
-                  case PERIODICAL_ISSUES -> "periodicalitem";
-                  case MONOGRAPH_UNITS -> "monographunit";
-                  case SOUND_UNITS -> "soundunit";
-                  case TRACKS -> "track";
-                  case CONVOLUTE_PARTS, PAGES -> "page";
-                })
-        .orElse("page");
   }
 
   /** Kramerius' own stream URLs. The only thing an embedded host must spell out. */
@@ -213,8 +182,7 @@ public final class EmbeddedManifests {
 
     @Override
     public String mods(String pid) {
-      // In-process, MODS is a datastream read straight from Akubra rather than an HTTP round trip —
-      // see docs/KRAMERIUS.md. The URL is still what a client outside would follow.
+      // In-process, MODS comes from Akubra; clients outside still follow this URL.
       return item(pid) + "/streams/BIBLIO_MODS";
     }
 

@@ -5,7 +5,7 @@
  * MZK), so a misindexed or pathological object is visible rather than fatal — v1 had no ceiling and no
  * cap either, which is a heap exhaustion waiting for one bad record.
  *
- * Typed for the same reason as UpstreamFailure: docs/BEHAVIOUR.md promises this case a status of its
+ * Typed for the same reason as UpstreamFailure: this case has a status of its
  * own, and until this existed the web layer could not tell it apart from any other IllegalStateException
  * and answered 500. It is deliberately NOT an UpstreamFailure — the instance answered, correctly and
  * completely; the refusal is ours, and telling an operator their Kramerius is broken would send them

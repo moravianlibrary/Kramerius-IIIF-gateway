@@ -9,7 +9,7 @@
  * value. This is the same data with somewhere to put a newline.
  *
  * JSON rather than YAML because Jackson is already here and a format is not worth a dependency; the
- * repository's other operator-facing configuration — catalogues.json, corpus/pids.json — is JSON too,
+ * repository's other operator-facing configuration — catalogues.json — is JSON too,
  * and `_comment` is how those carry their prose. Keys beginning with `_` are ignored, so the generator
  * can record why a library was left out without that becoming something to serve.
  *

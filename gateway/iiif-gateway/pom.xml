@@ -14,7 +14,7 @@
   module boundary and no second reuser.
 
   This is the only module that touches JDBC, and the only one that knows a port number exists.
-  See docs/DESIGN.md for why the roles are split and why Postgres carries the job queue.
+  See docs/DECISIONS.md for why the roles are split and why Postgres carries the job queue.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

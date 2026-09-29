@@ -4,7 +4,7 @@
  *
  * Ordering is the implementation's job, not the caller's: the sort field differs by child kind and by
  * Kramerius version, and on K7 it has to end in the Solr uniqueKey for cursorMark paging to be stable
- * (compositeId on SolrCloud, pid on standalone — see docs/DESIGN.md). Callers receive children already
+ * (compositeId on SolrCloud, pid on standalone). Callers receive children already
  * in reading order.
  */
 package cz.mzk.iiif.spi;
@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Optional;
 
 import cz.mzk.iiif.document.DocumentRecord;
-import cz.mzk.iiif.kramerius.ChildKind;
 
 public interface DocumentSource {
 
@@ -41,27 +40,34 @@ public interface DocumentSource {
   /**
    * The children of an object, in reading order.
    *
-   * <p>For {@link ChildKind#PAGES} the implementation must consult the foster relationship rather
-   * than ownership when the parent's model calls for it — an article's pages belong to its issue.
-   * See {@code DocumentModel.pagesAreFostered()}.
+   * <p>For {@link pages} the implementation must consult the foster relationship rather than
+   * ownership when the parent's model calls for it — an article's pages belong to its issue. See
+   * {@code DocumentModel.pagesAreFostered()}.
    */
-  List<DocumentRecord> children(String pid, ChildKind kind);
+  List<DocumentRecord> pages(String pid);
+
+  /** The ordered documents a collection-shaped record exposes as IIIF members. */
+  List<DocumentRecord> members(DocumentRecord document);
+
+  List<DocumentRecord> mediaUnits(String pid);
+
+  List<DocumentRecord> tracks(String soundUnitPid);
 
   /**
    * How many of an object's pages have an Image API endpoint — the number a dimension cache can
    * ever hold for it.
    *
-   * <p>Separate from {@link #children} because the answer is a number, and an implementation backed
-   * by an index can say it in one request no matter how large the document is. The default counts
-   * the children, which is what every caller used to do: correct, and up to eight round trips for a
-   * 3568-page document on a route whose whole point is to be cheap.
+   * <p>Separate from {@link #pages(String)} because the answer is a number, and an implementation
+   * backed by an index can say it in one request no matter how large the document is. The default
+   * counts the children, which is what every caller used to do: correct, and up to eight round
+   * trips for a 3568-page document on a route whose whole point is to be cheap.
    *
    * <p>Not `count_page`, which the document record already carries: that counts every page, and a
    * page with no tiles has no endpoint to ask, so it can never be cached. Comparing a cache against
    * count_page would report a document with untiled pages as permanently incomplete.
    */
   default int tiledPageCount(String pid) {
-    return (int) children(pid, ChildKind.PAGES).stream().filter(DocumentRecord::hasTiles).count();
+    return (int) pages(pid).stream().filter(DocumentRecord::hasTiles).count();
   }
 
   /**
@@ -84,8 +90,8 @@ public interface DocumentSource {
   /**
    * The members of a virtual collection.
    *
-   * <p>Separate from {@link #children} because collection membership is a filter query rather than
-   * a parent relation, and a member may be any model at all.
+   * <p>Separate from {@link #members(DocumentRecord)} because collection membership is a filter
+   * query rather than a parent relation, and a member may be any model at all.
    */
   List<DocumentRecord> collectionMembers(String pid);
 }

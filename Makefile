@@ -10,7 +10,7 @@
 # POM and the library have to be in the local repository before the gateway reactor can resolve them.
 # Build the gateway alone after changing a library file and you will be testing the previous library.
 #
-# How it works is docs/DESIGN.md; what was chosen and why is docs/DECISIONS.md.
+# Durable trade-offs are recorded in docs/DECISIONS.md.
 
 MAKEFLAGS += --no-print-directory
 .DEFAULT_GOAL := help
@@ -36,7 +36,10 @@ COMMIT         := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown
 # ─── Dev database ─────────────────────────────────────────────────────────────
 DB_CONTAINER   ?= iiif-db
 VIEWER_PORT    ?= 18090
-VIEWER_IMAGE   ?= localhost/iiif-viewers:1
+VIEWER_IMAGE_NAME ?= iiif-viewers
+VIEWER_VERSION  ?= 1
+VIEWER_IMAGE    ?= localhost/$(VIEWER_IMAGE_NAME):$(VIEWER_VERSION)
+VIEWER_IMAGE_REF := $(if $(REGISTRY),$(REGISTRY)/,)$(VIEWER_IMAGE_NAME)
 # Where `smoke` and `viewer-check` expect to find a running gateway.
 SMOKE_BASE     ?= http://localhost:8080
 DB_NAME        ?= iiif
@@ -147,37 +150,22 @@ test-integration: lib-install ## Tests needing a real Postgres (see db-up). Gate
 	exit $$status
 
 capabilities: ## Probe every alive registry library for Solr field availability
-	./scripts/capabilities.sh
+	./dev/capabilities.sh
 
 libraries: ## Write a complete library snapshot for a registry-free deployment (needs network)
-	./scripts/libraries.py
+	./dev/libraries.py
 
 country-codes: ## Regenerate the MARC country-code list from id.loc.gov (needs network) — review the diff
-	./scripts/country-codes.py
-
-throughput: ## Warm-cache throughput of a running gateway (needs IIIF_RATE_LIMIT_RPS=0)
-	@# Warm only, deliberately: a manifest-cache hit never touches Kramerius, so this measures our
-	@# serialisation and locking rather than somebody else's network — and there is nobody to be rude
-	@# to. Load-testing the COLD path would need a stub upstream, and is not done.
-	./scripts/throughput.py --base $(SMOKE_BASE)
-
-corpus-pick: ## Re-choose the comparison corpus (writes corpus/pids.json)
-	./scripts/corpus.py pick
-
-corpus-fetch: ## Download current-gateway manifests for the corpus (needs network)
-	./scripts/corpus.py fetch
-
-corpus: ## Summarise the comparison corpus
-	./scripts/corpus.py report
+	./dev/country-codes.py
 
 smoke: ## Hit live instances, one library per adapter (needs the gateway running + network)
-	IIIF_BASE=$(SMOKE_BASE) ./scripts/smoke.sh
+	IIIF_BASE=$(SMOKE_BASE) ./dev/smoke.sh
 
 viewer-check: viewer-image ## Load the manifests in all three pinned viewers and assert on the DOM
 	@# Depends on the image for the same reason viewer-open does: the harness pages live IN it, so
 	@# editing tests/viewer/pages and re-running would otherwise assert against the previous build.
 	@# Cached, the build is a second; uncached it is the thing you wanted anyway.
-	IIIF_BASE=$(SMOKE_BASE) ./scripts/viewer-check.sh
+	IIIF_BASE=$(SMOKE_BASE) ./dev/viewer-check.sh
 
 # The `up`/`logs` compose lifecycle arrives with deployment. Targets for things that do not exist yet
 # are noise.
@@ -186,6 +174,15 @@ viewer-check: viewer-image ## Load the manifests in all three pinned viewers and
 
 viewer-image: ## Build the pinned viewer image (Mirador, Clover, Universal Viewer)
 	$(DOCKER) build -t $(VIEWER_IMAGE) -f tests/viewer/Containerfile tests/viewer
+
+viewer-push: ## Push the pinned viewer image (requires REGISTRY=...)
+	$(if $(REGISTRY),,$(error REGISTRY is required))
+	$(DOCKER) tag $(VIEWER_IMAGE) $(VIEWER_IMAGE_REF):$(VIEWER_VERSION)
+	$(DOCKER) tag $(VIEWER_IMAGE) $(VIEWER_IMAGE_REF):latest
+	$(DOCKER) push $(VIEWER_IMAGE_REF):$(VIEWER_VERSION)
+	$(DOCKER) push $(VIEWER_IMAGE_REF):latest
+
+viewer-build-push: viewer-image viewer-push ## Build then push the pinned viewer image
 
 viewer-open: viewer-image ## Open the manifests in all three viewers, for a person (needs the gateway running)
 	@# The SAME image the assertions run against, so what a person reviews and what viewer-check asserts
@@ -270,8 +267,8 @@ clean-all: clean clean-images db-down ## Remove everything this repo created
 
 .PHONY: help lib-install set-lib-version \
 	format format-check lint typecheck version-check config-check check \
-	test test-integration capabilities libraries corpus corpus-pick corpus-fetch \
-	smoke throughput viewer-image viewer-check viewer-open \
+	test test-integration capabilities libraries \
+	smoke viewer-image viewer-push viewer-build-push viewer-check viewer-open \
 	db-up db-down db-size \
 	build push build-push set-version tag-version tag-latest release \
 	clean clean-images clean-all

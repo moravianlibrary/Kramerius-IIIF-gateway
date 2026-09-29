@@ -10,7 +10,7 @@
  * The point of predicting rather than timing out is that p50 is twelve canvases: half of all documents
  * resolve completely in well under a second, while a 3000-page cold document would burn an entire time
  * budget and *still* come back partial. Deciding up front means nobody waits for an answer that was never
- * going to be complete. See docs/DESIGN.md.
+ * going to be complete.
  */
 package cz.mzk.iiif.spi;
 

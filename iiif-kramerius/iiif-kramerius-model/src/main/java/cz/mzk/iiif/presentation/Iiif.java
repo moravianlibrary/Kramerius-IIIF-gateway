@@ -13,7 +13,7 @@
  *   - A Manifest is additionalProperties:false. There is no room for private extensions in the body;
  *     anything not in this file would fail validation.
  *
- * See docs/BEHAVIOUR.md for which blocks each document shape populates.
+ * The manifest-builder tests cover which blocks each document shape populates.
  */
 package cz.mzk.iiif.presentation;
 

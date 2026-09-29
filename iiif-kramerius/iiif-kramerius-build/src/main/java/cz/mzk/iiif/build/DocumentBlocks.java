@@ -40,25 +40,21 @@ final class DocumentBlocks {
   }
 
   /**
-   * Attribution, plus the text of any license the document carries. Viewers must display this.
+   * The document's access condition, where Kramerius supplies one.
    *
-   * <p>Assembled per language rather than as a Czech string and an English one: the institution's
-   * name is in whatever language that institution uses — Slovak for the SNK libraries — and a
-   * license text may be in a different set of languages again. Each language gets whatever the
-   * sources can give it.
-   */
-  /**
-   * Who provided this document. The institution, and nothing else.
+   * <p>The Kramerius 7 licence configuration supplies the licence's reader-facing name and its
+   * access type. The adapter turns those into a short condition before this builder receives it;
+   * its full unauthenticated notice remains in the Licence metadata row. IIIF clients must render
+   * this block, which makes it the right place for the part a reader needs before attempting
+   * access.
    *
-   * <p>Licences deliberately do NOT appear here. Viewers render requiredStatement as a banner that
-   * must be shown, and a licence notice is several hundred words of copyright law — MZK's runs to a
-   * paragraph about which floors of the building have terminals. Putting it here made the banner
-   * unreadable and repeated, word for word, what the Licence metadata row already said.
-   *
-   * <p>The rights information is not lost: it is one row away, where a reader can choose to read
-   * it.
+   * <p>Older Kramerius instances publish no such configuration. For them, retain the former
+   * attribution statement; the provider block still carries the institution in both cases.
    */
   Iiif.KeyValue requiredStatement() {
+    if (document.requiredStatement() != null) {
+      return document.requiredStatement();
+    }
     var label = config.translations().lookup("attribution.label");
     if (label == null) {
       return null;

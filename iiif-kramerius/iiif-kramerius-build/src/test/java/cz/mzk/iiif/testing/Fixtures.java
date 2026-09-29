@@ -19,7 +19,7 @@ import cz.mzk.iiif.document.ContentLocator;
 import cz.mzk.iiif.document.DocumentBundle;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.document.LibraryProfile;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.LanguageMap;
 
 public final class Fixtures {
@@ -41,7 +41,7 @@ public final class Fixtures {
    * A Slovak library.
    *
    * <p>Its registry `name` is Slovak, not Czech — which is why nothing hardcodes a language tag.
-   * See docs/DESIGN.md.
+   * The fixture gives the builder a complete, stable source.
    */
   public static LibraryProfile slovak() {
     return library(
@@ -71,22 +71,22 @@ public final class Fixtures {
 
   // Records
 
-  public static DocumentRecord.Builder document(String pid, String model, DocumentShape shape) {
+  public static DocumentRecord.Builder document(String pid, String model, IiifStructure shape) {
     return DocumentRecord.of(pid, model, shape);
   }
 
   /** A monograph — the ordinary page-bearing case. */
   public static DocumentRecord.Builder book(String label) {
-    return document(BOOK, "monograph", DocumentShape.PAGES).label(none(label));
+    return document(BOOK, "monograph", IiifStructure.PAGED_MANIFEST).label(none(label));
   }
 
   /** A tiled page, which is what a canvas normally comes from. */
   public static DocumentRecord.Builder page(String pid, String label) {
-    return document(pid, "page", DocumentShape.PAGES).label(none(label)).hasTiles(true);
+    return document(pid, "page", IiifStructure.PAGED_MANIFEST).label(none(label)).hasTiles(true);
   }
 
   public static DocumentRecord.Builder track(String pid, String label) {
-    return document(pid, "track", DocumentShape.SOUND_RECORDING).label(none(label));
+    return document(pid, "track", IiifStructure.MEDIA_MANIFEST).label(none(label));
   }
 
   public static Map<String, List<String>> none(String value) {

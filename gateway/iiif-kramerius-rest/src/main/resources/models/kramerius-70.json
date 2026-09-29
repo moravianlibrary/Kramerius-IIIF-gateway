@@ -5,16 +5,16 @@
     "This is data, not logic: adding a model Kramerius has introduced is an entry here, and the gateway",
     "reads a configured directory over these defaults at startup, so it needs no rebuild.",
     "",
-    "`shape` must name one of the DocumentShape constants — PAGES, SOUND_RECORDING, MEMBERS,",
-    "COLLECTION_MEMBERS. That set is deliberately NOT",
+    "`shape` must name one of the IiifStructure constants — PAGED_MANIFEST, MEDIA_MANIFEST,",
+    "CHILD_COLLECTION, VIRTUAL_COLLECTION. That set is deliberately NOT",
     "configurable: the builder switches on it exhaustively, so a shape only exists if there is code that",
     "knows how to build it. An unknown shape here fails at startup rather than at request time.",
     "",
     "Flags:",
-    "  children          which children a MEMBERS shape collects; required for it, unused otherwise.",
+    "  children          which children a CHILD_COLLECTION shape collects; required for it, unused otherwise.",
     "  fostersPages      pages belong to an ancestor, not to this model, so they are found through",
     "                    foster_parents.pids rather than own_parent.pid. True for article, internalpart",
-    "                    and picture — measured at MZK, see docs/BEHAVIOUR.md.",
+    "                    and picture — measured at MZK.",
     "  hasAncestors      worth building a partOf block for. Whether the parent is actually linkable is",
     "                    decided from the parent's own model, not from a list here.",
     "  excludesOwnModel  a member of the same model is skipped. Kramerius indexes a convolute as its own",
@@ -25,41 +25,41 @@
 
   "models": {
     "monograph": {
-      "shape": "PAGES",
+      "shape": "PAGED_MANIFEST",
       "promoteTo": "monographcollection",
       "promoteWhen": "MONOGRAPH_UNITS"
     },
-    "monographcollection": { "shape": "MEMBERS", "children": "MONOGRAPH_UNITS" },
-    "monographunit": { "shape": "PAGES", "hasAncestors": true },
+    "monographcollection": { "shape": "CHILD_COLLECTION", "children": "MONOGRAPH_UNITS" },
+    "monographunit": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
 
-    "manuscript": { "shape": "PAGES" },
-    "map": { "shape": "PAGES" },
-    "graphic": { "shape": "PAGES" },
-    "sheetmusic": { "shape": "PAGES" },
-    "oldprintsheetmusic": { "shape": "PAGES" },
-    "archive": { "shape": "PAGES" },
+    "manuscript": { "shape": "PAGED_MANIFEST" },
+    "map": { "shape": "PAGED_MANIFEST" },
+    "graphic": { "shape": "PAGED_MANIFEST" },
+    "sheetmusic": { "shape": "PAGED_MANIFEST" },
+    "oldprintsheetmusic": { "shape": "PAGED_MANIFEST" },
+    "archive": { "shape": "PAGED_MANIFEST" },
 
-    "periodical": { "shape": "MEMBERS", "children": "PERIODICAL_VOLUMES" },
+    "periodical": { "shape": "CHILD_COLLECTION", "children": "PERIODICAL_VOLUMES" },
     "periodicalvolume": {
-      "shape": "MEMBERS",
+      "shape": "CHILD_COLLECTION",
       "children": "PERIODICAL_ISSUES",
       "hasAncestors": true
     },
-    "periodicalitem": { "shape": "PAGES", "hasAncestors": true },
-    "supplement": { "shape": "PAGES", "hasAncestors": true },
+    "periodicalitem": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
+    "supplement": { "shape": "PAGED_MANIFEST", "hasAncestors": true },
 
-    "article": { "shape": "PAGES", "hasAncestors": true, "fostersPages": true },
-    "internalpart": { "shape": "PAGES", "hasAncestors": true, "fostersPages": true },
-    "picture": { "shape": "PAGES", "hasAncestors": true, "fostersPages": true },
+    "article": { "shape": "PAGED_MANIFEST", "hasAncestors": true, "fostersPages": true },
+    "internalpart": { "shape": "PAGED_MANIFEST", "hasAncestors": true, "fostersPages": true },
+    "picture": { "shape": "PAGED_MANIFEST", "hasAncestors": true, "fostersPages": true },
 
-    "soundrecording": { "shape": "SOUND_RECORDING" },
+    "soundrecording": { "shape": "MEDIA_MANIFEST" },
 
     "convolute": {
-      "shape": "MEMBERS",
+      "shape": "CHILD_COLLECTION",
       "children": "CONVOLUTE_PARTS",
       "excludesOwnModel": true
     },
-    "collection": { "shape": "COLLECTION_MEMBERS" }
+    "collection": { "shape": "VIRTUAL_COLLECTION" }
   },
 
   "_componentsComment": [

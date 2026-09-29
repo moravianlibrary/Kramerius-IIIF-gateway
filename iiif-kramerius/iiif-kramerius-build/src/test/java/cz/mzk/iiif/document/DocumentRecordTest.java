@@ -1,7 +1,7 @@
 /*
  * That re-shaping a document changes the shape and nothing else.
  *
- * withShape is a hand-written copy of a nineteen-component record, and several of those components are
+ * withShape is a hand-written copy of a twenty-component record, and several of those components are
  * neighbours of the same type — two language maps, four Optional<String>-ish fields. A transposition
  * there compiles cleanly and loses a document's metadata or its coordinates silently, on exactly the
  * documents that already needed a correction to be served at all.
@@ -17,21 +17,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 
 class DocumentRecordTest {
 
   /** Every component set, and set to something distinguishable from its neighbours. */
   private static DocumentRecord filled() {
-    return DocumentRecord.of("uuid:vol", "periodicalvolume", DocumentShape.MEMBERS)
-        .childKind(ChildKind.PERIODICAL_ISSUES)
+    return DocumentRecord.of("uuid:vol", "periodicalvolume", IiifStructure.CHILD_COLLECTION)
         .excludesOwnModel(true)
         .label(Map.of("cs", List.of("Ročník 1922")))
         .metadata(
@@ -58,13 +55,9 @@ class DocumentRecordTest {
   void withShapeCarriesEverythingElse() {
     DocumentRecord original = filled();
 
-    DocumentRecord reshaped = original.withShape(DocumentShape.PAGES, Optional.empty());
+    DocumentRecord reshaped = original.withShape(IiifStructure.PAGED_MANIFEST);
 
-    assertThat(reshaped.shape()).isEqualTo(DocumentShape.PAGES);
-    // Cleared deliberately: a document serving pages collects nothing else, and a stale
-    // PERIODICAL_ISSUES would be a claim about children it does not have.
-    assertThat(reshaped.childKind()).isEmpty();
-
+    assertThat(reshaped.shape()).isEqualTo(IiifStructure.PAGED_MANIFEST);
     assertThat(reshaped.pid()).isEqualTo(original.pid());
     assertThat(reshaped.model()).isEqualTo(original.model());
     assertThat(reshaped.excludesOwnModel()).isEqualTo(original.excludesOwnModel());
@@ -89,7 +82,7 @@ class DocumentRecordTest {
   void labelAndSummaryDoNotSwap() {
     // Same type, adjacent in the component list, and both language maps — the transposition a
     // wholesale equals() comparison would never catch, because it would still be equal to itself.
-    DocumentRecord reshaped = filled().withShape(DocumentShape.PAGES, Optional.empty());
+    DocumentRecord reshaped = filled().withShape(IiifStructure.PAGED_MANIFEST);
 
     assertThat(reshaped.label().get("cs")).containsExactly("Ročník 1922");
     assertThat(reshaped.summary().get("cs")).containsExactly("Popis svazku");
@@ -101,12 +94,11 @@ class DocumentRecordTest {
     // The output type is derived from the shape, which is the whole reason the correction has to
     // travel on the record rather than only in what the assembler gathers.
     DocumentRecord pages =
-        DocumentRecord.of("uuid:sheet", "sheetmusic", DocumentShape.PAGES)
+        DocumentRecord.of("uuid:sheet", "sheetmusic", IiifStructure.PAGED_MANIFEST)
             .label(Map.of("cs", List.of("Partitura")))
             .build();
 
     assertThat(pages.iiifType()).isEqualTo("Manifest");
-    assertThat(pages.withShape(DocumentShape.MEMBERS, Optional.empty()).iiifType())
-        .isEqualTo("Collection");
+    assertThat(pages.withShape(IiifStructure.CHILD_COLLECTION).iiifType()).isEqualTo("Collection");
   }
 }

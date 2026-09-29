@@ -31,7 +31,9 @@ class EmbeddedManifestsTest {
   /** An in-memory stand-in for Kramerius' own Solr and image access. */
   private static final class FakeKramerius implements KrameriusApi {
     private final Map<String, SolrDocument> documents = new LinkedHashMap<>();
-    private final Map<String, List<SolrDocument>> children = new LinkedHashMap<>();
+    private final Map<String, List<SolrDocument>> pages = new LinkedHashMap<>();
+    private final Map<String, List<SolrDocument>> members = new LinkedHashMap<>();
+    private final Map<String, List<MediaUnit>> mediaUnits = new LinkedHashMap<>();
     private final Map<String, int[]> sizes = new LinkedHashMap<>();
 
     FakeKramerius with(String pid, String model, Map<String, List<String>> fields) {
@@ -39,9 +41,26 @@ class EmbeddedManifestsTest {
       return this;
     }
 
-    FakeKramerius withChild(String parent, String model, SolrDocument child) {
-      children.computeIfAbsent(parent + "/" + model, key -> new ArrayList<>()).add(child);
+    FakeKramerius withPage(String parent, SolrDocument child) {
+      pages.computeIfAbsent(parent, key -> new ArrayList<>()).add(child);
       documents.put(child.pid(), child);
+      return this;
+    }
+
+    FakeKramerius withMember(String parent, SolrDocument child) {
+      members.computeIfAbsent(parent, key -> new ArrayList<>()).add(child);
+      documents.put(child.pid(), child);
+      return this;
+    }
+
+    FakeKramerius withMediaUnit(String parent, SolrDocument unit, SolrDocument... tracks) {
+      mediaUnits
+          .computeIfAbsent(parent, key -> new ArrayList<>())
+          .add(new MediaUnit(unit, List.of(tracks)));
+      documents.put(unit.pid(), unit);
+      for (SolrDocument track : tracks) {
+        documents.put(track.pid(), track);
+      }
       return this;
     }
 
@@ -56,8 +75,18 @@ class EmbeddedManifestsTest {
     }
 
     @Override
-    public List<SolrDocument> childrenOf(String pid, String model) {
-      return children.getOrDefault(pid + "/" + model, List.of());
+    public List<SolrDocument> pagesOf(String pid) {
+      return pages.getOrDefault(pid, List.of());
+    }
+
+    @Override
+    public List<SolrDocument> membersOf(String pid) {
+      return members.getOrDefault(pid, List.of());
+    }
+
+    @Override
+    public List<MediaUnit> mediaUnitsOf(String pid) {
+      return mediaUnits.getOrDefault(pid, List.of());
     }
 
     @Override
@@ -99,8 +128,8 @@ class EmbeddedManifestsTest {
     FakeKramerius kramerius =
         new FakeKramerius()
             .with("uuid:book", "monograph", Map.of("title.search", List.of("Kniha")))
-            .withChild("uuid:book", "page", page("uuid:p1", "1"))
-            .withChild("uuid:book", "page", page("uuid:p2", "2"))
+            .withPage("uuid:book", page("uuid:p1", "1"))
+            .withPage("uuid:book", page("uuid:p2", "2"))
             .withSize("uuid:p1", 2480, 3508)
             .withSize("uuid:p2", 2470, 3500);
 
@@ -119,9 +148,8 @@ class EmbeddedManifestsTest {
     FakeKramerius kramerius =
         new FakeKramerius()
             .with("uuid:per", "periodical", Map.of("title.search", List.of("Lidové noviny")))
-            .withChild(
+            .withMember(
                 "uuid:per",
-                "periodicalvolume",
                 new KrameriusApi.SolrDocument(
                     "uuid:vol", "periodicalvolume", Map.of("title.search", List.of("1935"))));
 
@@ -137,14 +165,10 @@ class EmbeddedManifestsTest {
     FakeKramerius kramerius =
         new FakeKramerius()
             .with("uuid:rec", "soundrecording", Map.of("title.search", List.of("Nahrávka")))
-            .withChild(
+            .withMediaUnit(
                 "uuid:rec",
-                "soundunit",
                 new KrameriusApi.SolrDocument(
-                    "uuid:side-a", "soundunit", Map.of("title.search", List.of("Strana A"))))
-            .withChild(
-                "uuid:side-a",
-                "track",
+                    "uuid:side-a", "soundunit", Map.of("title.search", List.of("Strana A"))),
                 new KrameriusApi.SolrDocument(
                     "uuid:t1",
                     "track",
@@ -170,7 +194,7 @@ class EmbeddedManifestsTest {
     FakeKramerius kramerius =
         new FakeKramerius()
             .with("uuid:book", "monograph", Map.of("title.search", List.of("Kniha")))
-            .withChild("uuid:book", "page", page("uuid:p1", "1"));
+            .withPage("uuid:book", page("uuid:p1", "1"));
 
     Iiif.Canvas canvas = (Iiif.Canvas) build(kramerius, "uuid:book").items().get(0);
 

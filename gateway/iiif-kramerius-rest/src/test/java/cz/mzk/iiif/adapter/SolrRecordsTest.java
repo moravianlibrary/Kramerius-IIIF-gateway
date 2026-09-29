@@ -17,10 +17,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,7 +34,7 @@ import cz.mzk.iiif.adapter.v70.Kramerius70;
 import cz.mzk.iiif.adapter.v714.Kramerius714;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.i18n.Translations;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 
 class SolrRecordsTest {
@@ -51,8 +54,12 @@ class SolrRecordsTest {
   }
 
   private static SolrRecords mapper(KrameriusAdapter adapter) {
-    return new SolrRecords(
-        adapter.models(), adapter.schema(), Translations.bundled(), java.util.Map.of());
+    return mapper(adapter, Map.of());
+  }
+
+  private static SolrRecords mapper(
+      KrameriusAdapter adapter, Map<String, LicenseConfig.License> licenses) {
+    return new SolrRecords(adapter.models(), adapter.schema(), Translations.bundled(), licenses);
   }
 
   private static JsonNode fixture(String name) {
@@ -90,7 +97,7 @@ class SolrRecordsTest {
     void basics(KrameriusAdapter adapter) {
       DocumentRecord record = map(adapter, MONOGRAPH);
 
-      assertThat(record.shape()).isEqualTo(DocumentShape.PAGES);
+      assertThat(record.shape()).isEqualTo(IiifStructure.PAGED_MANIFEST);
       assertThat(record.iiifType()).isEqualTo("Manifest");
       assertThat(record.label().get("none")).containsExactly("Snídaně v poledne");
       assertThat(record.pageCount()).hasValue(202);
@@ -124,6 +131,62 @@ class SolrRecordsTest {
       assertThat(row(record, "Dostupnost")).isNull();
     }
 
+    @Test
+    @DisplayName("Kramerius licence configuration supplies a concise required statement")
+    void configuredLicenseSuppliesAccessStatement() {
+      LicenseConfig.License onsite =
+          new LicenseConfig.License(
+              "onsite",
+              Map.of(
+                  "cs", List.of("Pouze v knihovně"),
+                  "en", List.of("In the library only")),
+              Map.of(
+                  "cs", List.of("Úplné znění podmínek pro přístup v knihovně."),
+                  "en", List.of("Full terms for access in the library.")),
+              Optional.of("terminal"));
+
+      DocumentRecord record =
+          mapper(new Kramerius714(), Map.of("onsite", onsite))
+              .document(fixture(MONOGRAPH), false)
+              .orElseThrow();
+
+      assertThat(record.requiredStatement().label().get("cs")).containsExactly("Podmínky přístupu");
+      assertThat(record.requiredStatement().value().get("cs"))
+          .containsExactly("Pouze v knihovně — Dostupné na terminálech knihovny");
+      assertThat(record.requiredStatement().value().get("en"))
+          .containsExactly("In the library only — Available at library terminals");
+      assertThat(
+              record.metadata().stream()
+                  .filter(r -> r.label().getOrDefault("cs", List.of()).contains("Licence"))
+                  .findFirst()
+                  .orElseThrow()
+                  .value()
+                  .get("cs"))
+          .containsExactly("<p>Úplné znění podmínek pro přístup v knihovně.</p>");
+    }
+
+    @Test
+    @DisplayName("a child licence remains metadata, not the parent's required statement")
+    void childLicenseDoesNotRestrictParentStatement() {
+      LicenseConfig.License onsite =
+          new LicenseConfig.License(
+              "onsite",
+              Map.of("cs", List.of("Pouze v knihovně")),
+              Map.of(),
+              Optional.of("terminal"));
+      ObjectNode periodical = fixture(MONOGRAPH).deepCopy();
+      periodical.remove(List.of("licenses", "licenses_of_ancestors", "accessibility"));
+      periodical.putArray("contains_licenses").add("onsite");
+
+      DocumentRecord record =
+          mapper(new Kramerius714(), Map.of("onsite", onsite))
+              .document(periodical, false)
+              .orElseThrow();
+
+      assertThat(record.requiredStatement()).isNull();
+      assertThat(record.licenses()).containsExactly("onsite");
+    }
+
     @ParameterizedTest
     @MethodSource("cz.mzk.iiif.adapter.SolrRecordsTest#adapters")
     @DisplayName("an absent field is absent, never an empty or null-valued row")
@@ -143,7 +206,7 @@ class SolrRecordsTest {
     }
 
     @Test
-    @DisplayName("metadata rows come out in the order docs/BEHAVIOUR.md specifies")
+    @DisplayName("metadata rows come out in the intended order")
     void rowOrder() {
       List<String> labels =
           map(new Kramerius714(), MONOGRAPH).metadata().stream()
@@ -158,10 +221,9 @@ class SolrRecordsTest {
     @Test
     @DisplayName("the same rows v1 emitted still say the same thing")
     void agreesWithV1WhereItWasRight() {
-      // v1's manifest for this pid is in the corpus. It had five rows; these four are the ones both
+      // The prior gateway's manifest for this pid had five rows; these four are the ones both
       // versions produce, and they must not have drifted. The two extra rows (availability,
-      // licence)
-      // are deliberate additions, not disagreements.
+      // licence) are deliberate additions, not disagreements.
       DocumentRecord record = map(new Kramerius714(), MONOGRAPH);
 
       assertThat(row(record, "Název")).isEqualTo("Snídaně v poledne");
@@ -181,7 +243,7 @@ class SolrRecordsTest {
     void mapsOnBothFloors(KrameriusAdapter adapter) {
       DocumentRecord record = map(adapter, MANUSCRIPT);
 
-      assertThat(record.shape()).isEqualTo(DocumentShape.PAGES);
+      assertThat(record.shape()).isEqualTo(IiifStructure.PAGED_MANIFEST);
       assertThat(record.pageCount()).hasValue(493);
       assertThat(record.label().get("none")).isNotEmpty();
     }

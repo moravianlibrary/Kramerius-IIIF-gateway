@@ -5,8 +5,8 @@
  * mode worth guarding against here — so this checks both directions: valid documents pass, and
  * documents with known defects are rejected.
  *
- * The invalid cases are not hypothetical. They are the shapes the Ruby gateway actually emitted; see
- * the defect list in docs/BEHAVIOUR.md.
+ * The invalid cases are not hypothetical. They are shapes the Ruby gateway actually emitted and that
+ * fixtures must prevent.
  */
 package cz.mzk.iiif.testing;
 

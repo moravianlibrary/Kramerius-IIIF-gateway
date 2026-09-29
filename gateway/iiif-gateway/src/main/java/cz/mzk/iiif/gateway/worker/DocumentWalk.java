@@ -51,8 +51,8 @@ final class DocumentWalk {
   }
 
   Progress run(Instant from, Optional<String> resumeCursor) {
-    Instant deadline = Instant.now().plus(PASS_BUDGET);
-    Instant watermark = from;
+    Instant started = Instant.now();
+    Instant deadline = started.plus(PASS_BUDGET);
     int documents = 0;
     // Only if it belongs to this bound — see WalkCursor. A cursor from a different bound is not an
     // error to Solr, it is rows from the wrong part of the index.
@@ -68,43 +68,43 @@ final class DocumentWalk {
       // advance past such a block, so without carrying the cursor forward the same rows would be
       // read on every pass, for ever.
       while (true) {
+        Optional<String> windowCursor = cursor;
         KrameriusRepository.PageWindow window =
             library.repository().pageWindow(from, config.workerBatch() * 32, cursor);
 
         // Grouped by document so the blob is written once per document rather than once per page.
-        Map<String, Map<String, ImageSize>> pending = new LinkedHashMap<>();
+        Map<String, List<KrameriusRepository.PageRef>> pending = new LinkedHashMap<>();
         for (KrameriusRepository.PageRef page : window.pages()) {
-          pending
-              .computeIfAbsent(page.documentPid(), key -> new LinkedHashMap<>())
-              .put(page.pid(), ImageSize.UNAVAILABLE);
+          pending.computeIfAbsent(page.documentPid(), key -> new java.util.ArrayList<>()).add(page);
         }
 
         boolean parked = false;
-        for (Map.Entry<String, Map<String, ImageSize>> entry : pending.entrySet()) {
+        for (Map.Entry<String, List<KrameriusRepository.PageRef>> entry : pending.entrySet()) {
           if (Instant.now().isAfter(deadline)) {
-            LOG.info("{}: pass budget reached, parking at {}", library.code(), watermark);
+            LOG.info("{}: pass budget reached, parking at {}", library.code(), from);
             parked = true;
             break;
           }
-          documents += fill(entry.getKey(), List.copyOf(entry.getValue().keySet()));
+          documents += fill(entry.getKey(), entry.getValue());
         }
 
-        Instant latest = latestModified(window.pages());
-        if (latest != null && latest.isAfter(watermark)) {
-          watermark = latest;
+        if (parked || Instant.now().isAfter(deadline)) {
+          // The window cursor points before this window. Reusing it means already-filled documents
+          // may be read again, but no document that did not fit before the time budget is skipped.
+          return new Progress(
+              documents, Optional.of(from), saved(windowCursor, from), Optional.empty());
         }
+
         cursor = window.nextCursor();
-
-        // Exhausted: nothing more for this bound, so the next pass starts from the new watermark
-        // and
-        // the cursor has nothing left to say.
+        // The pass has consumed every window. Start the next one a few hours before this pass
+        // began:
+        // it covers rows committed while Solr was being walked and any uncertain boundary ordering.
         if (window.exhausted()) {
           return new Progress(
-              documents, Optional.of(watermark), Optional.empty(), Optional.empty());
-        }
-        if (parked || Instant.now().isAfter(deadline)) {
-          return new Progress(
-              documents, Optional.of(watermark), saved(cursor, from), Optional.empty());
+              documents,
+              Optional.of(started.minus(config.syncOverlap())),
+              Optional.empty(),
+              Optional.empty());
         }
       }
 
@@ -117,7 +117,7 @@ final class DocumentWalk {
       // The watermark still advanced for whatever completed, so the next pass resumes rather than
       // repeating the whole walk. The cursor goes with it when it is still meaningful.
       return new Progress(
-          documents, Optional.of(watermark), saved(cursor, from), Optional.of(e.toString()));
+          documents, Optional.of(from), saved(cursor, from), Optional.of(e.toString()));
     }
   }
 
@@ -132,33 +132,26 @@ final class DocumentWalk {
     return cursor.map(mark -> new WalkCursor(from, mark).encode());
   }
 
-  private int fill(String documentPid, List<String> pagePids) {
+  private int fill(String documentPid, List<KrameriusRepository.PageRef> pages) {
+    Optional<SizeStore.Document> cached = store.find(library.code(), documentPid);
     Map<String, ImageSize> known =
-        new HashMap<>(
-            store
-                .find(library.code(), documentPid)
-                .map(SizeStore.Document::sizes)
-                .orElse(Map.of()));
+        new HashMap<>(cached.map(SizeStore.Document::sizes).orElse(Map.of()));
+    Instant fetchedAt = cached.map(SizeStore.Document::fetchedAt).orElse(Instant.EPOCH);
 
-    List<String> missing = pagePids.stream().filter(pid -> !known.containsKey(pid)).toList();
-    if (missing.isEmpty()) {
+    List<String> refresh =
+        pages.stream()
+            .filter(
+                page ->
+                    !known.containsKey(page.pid())
+                        || page.modified().map(fetchedAt::isBefore).orElse(false))
+            .map(KrameriusRepository.PageRef::pid)
+            .toList();
+    if (refresh.isEmpty()) {
       return 0;
     }
 
-    known.putAll(library.repository().sizes().sizes(missing));
+    known.putAll(library.repository().sizes().sizes(refresh));
     store.put(library.code(), documentPid, known);
     return 1;
-  }
-
-  /** The greatest `modified` seen, which is where the next pass resumes. */
-  private static Instant latestModified(List<KrameriusRepository.PageRef> pages) {
-    Instant latest = null;
-    for (KrameriusRepository.PageRef page : pages) {
-      Instant modified = page.modified().orElse(null);
-      if (modified != null && (latest == null || modified.isAfter(latest))) {
-        latest = modified;
-      }
-    }
-    return latest;
   }
 }

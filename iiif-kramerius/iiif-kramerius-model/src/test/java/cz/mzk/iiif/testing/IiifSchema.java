@@ -8,7 +8,7 @@
  * The schema's root is a oneOf over the IIIF resource types, so a Manifest and a Collection are both
  * validated by the same entry point without picking a sub-schema.
  *
- * See docs/BEHAVIOUR.md for what the documents are supposed to contain; this only checks that what we
+ * The builder tests define what the documents contain; this only checks that what we
  * emit is legal IIIF, not that it says the right things.
  */
 package cz.mzk.iiif.testing;

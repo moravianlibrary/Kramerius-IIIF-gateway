@@ -3,7 +3,7 @@
  *
  * One interface rather than three because they are one transactional unit: enqueueing a job commits
  * atomically with the state it describes, which is the whole reason Postgres carries the messaging
- * instead of a broker. See docs/DESIGN.md.
+ * instead of a broker.
  */
 package cz.mzk.iiif.gateway.store;
 

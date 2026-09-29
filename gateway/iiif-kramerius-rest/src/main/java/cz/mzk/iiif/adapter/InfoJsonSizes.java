@@ -2,14 +2,14 @@
  * Real page dimensions, one info.json at a time.
  *
  * There is no bulk dimension source over HTTP — Solr indexes no dimensions and info.json is one request
- * per image — which is the single fact that shapes the whole caching design. At MZK that is 75.7 million
- * requests for full coverage, so this is deliberately polite: a bounded pool, and a per-library cap the
+ * per image — which is the single fact that shapes the whole caching design. At MZK that is tens of
+ * millions of requests for full coverage, so this is deliberately polite: a bounded pool, and a per-library cap the
  * worker shares, because the gateway is a client of fifty third-party servers that never agreed to it.
  *
  * Results are correlated BY REQUEST INDEX, not by matching the @id the server returns. v1 compared an
- * https:// URL it had built against the http:// @id the image server actually reports, so nothing ever
- * matched and every canvas came out with "width": null. That defect is live in production today, and
- * index correlation makes the whole class of it impossible.
+ * https:// URL it had built against the http:// @id the image server actually reports, so nothing
+ * matched and every canvas came out with "width": null. Index correlation makes that class of defect
+ * impossible.
  *
  * A page with no usable answer is recorded rather than omitted: without that, it is indistinguishable
  * from a page nobody has asked about, and a permanently broken image would be re-requested on every

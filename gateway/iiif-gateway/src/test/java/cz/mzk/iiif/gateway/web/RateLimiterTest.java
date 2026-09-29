@@ -8,6 +8,8 @@ package cz.mzk.iiif.gateway.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -70,5 +72,16 @@ class RateLimiterTest {
     assertThat(new RateLimiter(0, 10).retryAfterSeconds()).isEqualTo(1);
     assertThat(new RateLimiter(0.0001, 10).retryAfterSeconds()).isLessThanOrEqualTo(3600);
     assertThat(new RateLimiter(20, 100).retryAfterSeconds()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("idle clients are removed once their bucket has refilled")
+  void evictsIdleBuckets() {
+    RateLimiter limiter = new RateLimiter(1, 2);
+    limiter.allow("10.0.0.1");
+
+    limiter.evictIdle(System.nanoTime() + Duration.ofMinutes(6).toNanos(), Duration.ofMinutes(5));
+
+    assertThat(limiter.bucketCount()).isZero();
   }
 }

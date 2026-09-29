@@ -90,6 +90,12 @@ class ManifestCachingTest {
 
   private void startAgainst(StubKramerius stub, String declaredVersion, int waitSeconds)
       throws IOException {
+    startAgainst(stub, declaredVersion, waitSeconds, true);
+  }
+
+  private void startAgainst(
+      StubKramerius stub, String declaredVersion, int waitSeconds, boolean withStore)
+      throws IOException {
     upstream = stub;
     port = freePort();
     adminPort = freePort();
@@ -109,12 +115,12 @@ class ManifestCachingTest {
     Config config = Config.from(env);
     HttpClient upstreamClient =
         HttpClient.newBuilder().connectTimeout(config.connectTimeout()).build();
-    store = new MemorySizeStore();
+    store = withStore ? new MemorySizeStore() : null;
     Libraries libraries =
-        new Libraries(config, Optional.empty(), Optional.of(store), upstreamClient);
-    Manifests manifests = new Manifests(config, libraries, Optional.of(store));
+        new Libraries(config, Optional.empty(), Optional.ofNullable(store), upstreamClient);
+    Manifests manifests = new Manifests(config, libraries, Optional.ofNullable(store));
     health = new LibraryHealth(config, libraries, upstreamClient);
-    server = new WebServer(config, libraries, manifests, Optional.of(store), health);
+    server = new WebServer(config, libraries, manifests, Optional.ofNullable(store), health);
     server.start();
   }
 
@@ -270,6 +276,24 @@ class ManifestCachingTest {
   }
 
   @Test
+  @DisplayName("dimension administration refuses a deployment with no size store")
+  void dimensionsNeedAStore() throws Exception {
+    StubKramerius stub = new StubKramerius(PID, 4, false);
+    startAgainst(stub, "7.2.2", 5, false);
+
+    for (String method : java.util.List.of("PUT", "DELETE")) {
+      HttpResponse<String> response =
+          client.send(
+              HttpRequest.newBuilder(adminUri("/stub/" + PID + "/dimensions"))
+                  .method(method, HttpRequest.BodyPublishers.noBody())
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      assertThat(response.statusCode()).isEqualTo(501);
+      assertThat(response.body()).contains("\"code\":\"no_store\"");
+    }
+  }
+
+  @Test
   @DisplayName("/health reports the manifest cache, and does not assume a Postgres store")
   void healthReportsTheCache() throws Exception {
     start(false, 4, 5);
@@ -319,7 +343,7 @@ class ManifestCachingTest {
   @Test
   @DisplayName("…/dimensions and X-IIIF-Dimensions say the same thing about the same document")
   void theRouteAgreesWithTheHeader() throws Exception {
-    // BEHAVIOUR.md: "the route and the header cannot disagree about one document". Asserted here
+    // The route and the header cannot disagree about one document. Asserted here
     // for all three states at once, because the two were computed independently — the header from
     // the assembled bundle, the route from two index counts — and only ever checked separately.
 

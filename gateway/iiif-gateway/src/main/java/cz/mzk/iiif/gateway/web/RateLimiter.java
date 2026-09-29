@@ -87,7 +87,10 @@ public final class RateLimiter {
    * address. Called on a timer rather than per request.
    */
   public void evictIdle() {
-    long now = System.nanoTime();
+    evictIdle(System.nanoTime(), Duration.ofMinutes(5));
+  }
+
+  void evictIdle(long now, Duration idle) {
     buckets
         .entrySet()
         .removeIf(
@@ -96,8 +99,12 @@ public final class RateLimiter {
               synchronized (bucket) {
                 double elapsed = (now - bucket.lastRefillNanos) / 1_000_000_000.0;
                 return bucket.tokens + elapsed * ratePerSecond >= burst
-                    && elapsed > Duration.ofMinutes(5).toSeconds();
+                    && elapsed > idle.toSeconds();
               }
             });
+  }
+
+  int bucketCount() {
+    return buckets.size();
   }
 }

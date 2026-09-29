@@ -12,8 +12,8 @@
  * One instance per document, because canvas and range numbering are running counters shared across a
  * document's sections — a sound recording numbers its track canvases after its page canvases.
  *
- * docs/BEHAVIOUR.md is the specification for what comes out of here. When the two disagree, the document
- * is right and this is a bug.
+ * The tests specify what comes out of here. When they disagree with the implementation, the
+ * implementation is a bug.
  */
 package cz.mzk.iiif.build;
 
@@ -50,11 +50,11 @@ public final class ManifestBuilder {
 
   private Iiif.Document dispatch() {
     return switch (document.shape()) {
-      case PAGES -> pages();
-      case SOUND_RECORDING -> soundRecording();
+      case PAGED_MANIFEST -> pages();
+      case MEDIA_MANIFEST -> soundRecording();
       // Both collection shapes differ only in how the host gathered the members, which it already
       // has.
-      case MEMBERS, COLLECTION_MEMBERS -> members();
+      case CHILD_COLLECTION, VIRTUAL_COLLECTION -> members();
     };
   }
 
@@ -63,7 +63,7 @@ public final class ManifestBuilder {
    *
    * <p>An object with a PDF and no pages lands here too and comes out as a Manifest with empty
    * `items` plus a rendering, which is what it is. There is no separate PDF shape — see
-   * DocumentShape.
+   * IiifStructure.
    */
   private Iiif.Document pages() {
     List<Object> items = new ArrayList<>(bundle.pages().size());
@@ -86,7 +86,7 @@ public final class ManifestBuilder {
     }
 
     List<Iiif.Range> structures = new ArrayList<>();
-    for (DocumentBundle.SoundUnit unit : bundle.soundUnits()) {
+    for (DocumentBundle.MediaUnit unit : bundle.mediaUnits()) {
       List<Iiif.Reference> members = new ArrayList<>();
       for (DocumentRecord track : unit.tracks()) {
         Iiif.Canvas canvas = canvases.track(track, unit.unit());
@@ -125,9 +125,13 @@ public final class ManifestBuilder {
   }
 
   private Iiif.Reference reference(DocumentRecord member) {
-    // A page cannot be a manifest, so the reference points at whatever contains it.
-    String target = member.parent().map(DocumentRecord.Parent::pid).orElse(member.pid());
-    String type = member.parent().isPresent() ? "Manifest" : member.iiifType();
+    // A page cannot be a manifest, so it points at its containing document. Other child documents
+    // (a periodical volume, issue or monograph unit) have their own manifest even though they too
+    // carry a parent, and must retain their own pid.
+    boolean page = "page".equals(member.model());
+    String target =
+        page ? member.parent().map(DocumentRecord.Parent::pid).orElse(member.pid()) : member.pid();
+    String type = page ? "Manifest" : member.iiifType();
     return new Iiif.Reference(ids.manifest(target), type, member.label());
   }
 

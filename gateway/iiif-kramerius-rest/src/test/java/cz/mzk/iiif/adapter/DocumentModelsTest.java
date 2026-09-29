@@ -18,8 +18,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import cz.mzk.iiif.kramerius.ChildKind;
-
 class DocumentModelsTest {
 
   private static InputStream json(String text) {
@@ -80,12 +78,10 @@ class DocumentModelsTest {
     @Test
     @DisplayName("every MEMBERS model names which children it collects")
     void membersNameTheirChildren() {
-      assertThat(models.require("periodical").children()).contains(ChildKind.PERIODICAL_VOLUMES);
-      assertThat(models.require("periodicalvolume").children())
-          .contains(ChildKind.PERIODICAL_ISSUES);
-      assertThat(models.require("convolute").children()).contains(ChildKind.CONVOLUTE_PARTS);
-      assertThat(models.require("monographcollection").children())
-          .contains(ChildKind.MONOGRAPH_UNITS);
+      assertThat(models.require("periodical").children()).contains("PERIODICAL_VOLUMES");
+      assertThat(models.require("periodicalvolume").children()).contains("PERIODICAL_ISSUES");
+      assertThat(models.require("convolute").children()).contains("CONVOLUTE_PARTS");
+      assertThat(models.require("monographcollection").children()).contains("MONOGRAPH_UNITS");
       // Shapes that do not collect children name none.
       assertThat(models.require("monograph").children()).isEmpty();
       assertThat(models.require("collection").children()).isEmpty();
@@ -141,7 +137,7 @@ class DocumentModelsTest {
                   DocumentModels.parse(
                       json(
                           """
-                          {"models": {"thing": {"shape": "PAGES",
+                          {"models": {"thing": {"shape": "PAGED_MANIFEST",
                                                 "promoteTo": "ghost",
                                                 "promoteWhen": "PAGES"}}}""")))
           .isInstanceOf(IllegalArgumentException.class)
@@ -150,13 +146,13 @@ class DocumentModelsTest {
 
     @Test
     @DisplayName("promoting on a child kind that does not exist is refused")
-    void unknownChildKind() {
+    void unknownChildRelation() {
       assertThatThrownBy(
               () ->
                   DocumentModels.parse(
                       json(
                           """
-                          {"models": {"thing": {"shape": "PAGES",
+                          {"models": {"thing": {"shape": "PAGED_MANIFEST",
                                                 "promoteTo": "thing",
                                                 "promoteWhen": "SOMETHING"}}}""")))
           .isInstanceOf(IllegalArgumentException.class)
@@ -164,14 +160,15 @@ class DocumentModelsTest {
     }
 
     @Test
-    @DisplayName("a MEMBERS shape with no `children` is refused — it would collect nothing")
+    @DisplayName(
+        "a CHILD_COLLECTION shape with no `children` is refused — it would collect nothing")
     void membersWithoutChildren() {
       assertThatThrownBy(
               () ->
                   DocumentModels.parse(
                       json(
                           """
-                  {"models": {"thing": {"shape": "MEMBERS"}}}""")))
+                  {"models": {"thing": {"shape": "CHILD_COLLECTION"}}}""")))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("thing")
           .hasMessageContaining("children");

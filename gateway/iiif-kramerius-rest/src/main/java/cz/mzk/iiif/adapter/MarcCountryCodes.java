@@ -5,7 +5,7 @@
  * ["Xr", "Praha"] — so telling them apart is the difference between printing "Praha" and printing "Xr"
  * as the place of publication on roughly a quarter of MZK's documents.
  *
- * The list is DATA, not code: scripts/country-codes.py writes it from id.loc.gov plus whatever
+ * The list is DATA, not code: dev/country-codes.py writes it from id.loc.gov plus whatever
  * deprecated codes the libraries still hold. Editing the resource by hand is pointless — the next run
  * of the script overwrites it — so a wrong entry is a fix to the script.
  *

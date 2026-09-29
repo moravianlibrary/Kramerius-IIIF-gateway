@@ -21,7 +21,6 @@ import cz.mzk.iiif.document.ContentLocator;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.document.ImageSize;
 import cz.mzk.iiif.document.LibraryProfile;
-import cz.mzk.iiif.kramerius.ChildKind;
 import cz.mzk.iiif.spi.CatalogueLink;
 import cz.mzk.iiif.spi.DocumentSource;
 import cz.mzk.iiif.spi.ImageSizeSource;
@@ -71,7 +70,7 @@ public final class FakeRepository implements Repository, DocumentSource, Managed
     return this;
   }
 
-  public FakeRepository withChildren(String pid, ChildKind kind, DocumentRecord... records) {
+  public FakeRepository withChildren(String pid, String kind, DocumentRecord... records) {
     children.put(key(pid, kind), List.of(records));
     return with(records);
   }
@@ -157,9 +156,31 @@ public final class FakeRepository implements Repository, DocumentSource, Managed
     return model == null ? Optional.empty() : Optional.of(new Lookup.UnsupportedModel(model));
   }
 
-  @Override
-  public List<DocumentRecord> children(String pid, ChildKind kind) {
+  private List<DocumentRecord> children(String pid, String kind) {
     return children.getOrDefault(key(pid, kind), List.of());
+  }
+
+  @Override
+  public List<DocumentRecord> pages(String pid) {
+    return children(pid, "PAGES");
+  }
+
+  @Override
+  public List<DocumentRecord> members(DocumentRecord document) {
+    return java.util.stream.Stream.of(
+            "MONOGRAPH_UNITS", "PERIODICAL_VOLUMES", "PERIODICAL_ISSUES", "CONVOLUTE_PARTS")
+        .flatMap(kind -> children(document.pid(), kind).stream())
+        .toList();
+  }
+
+  @Override
+  public List<DocumentRecord> mediaUnits(String pid) {
+    return children(pid, "MEDIA_UNITS");
+  }
+
+  @Override
+  public List<DocumentRecord> tracks(String soundUnitPid) {
+    return children(soundUnitPid, "TRACKS");
   }
 
   @Override
@@ -217,7 +238,7 @@ public final class FakeRepository implements Repository, DocumentSource, Managed
     return cached.size();
   }
 
-  private static String key(String pid, ChildKind kind) {
+  private static String key(String pid, String kind) {
     return pid + " " + kind;
   }
 }

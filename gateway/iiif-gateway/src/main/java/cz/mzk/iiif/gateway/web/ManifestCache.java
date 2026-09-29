@@ -34,6 +34,7 @@
  */
 package cz.mzk.iiif.gateway.web;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Iterator;
@@ -110,7 +111,7 @@ public final class ManifestCache {
     String key = key(library, pid);
     remove(key);
     entries.put(key, new Entry(json, etag, dimensions, Instant.now()));
-    bytes += json.length();
+    bytes += byteCount(json);
     evict();
   }
 
@@ -130,7 +131,7 @@ public final class ManifestCache {
   private void evict() {
     Iterator<Map.Entry<String, Entry>> oldest = entries.entrySet().iterator();
     while ((entries.size() > maxEntries || bytes > maxBytes) && oldest.hasNext()) {
-      bytes -= oldest.next().getValue().json().length();
+      bytes -= byteCount(oldest.next().getValue().json());
       oldest.remove();
     }
   }
@@ -138,11 +139,16 @@ public final class ManifestCache {
   private void remove(String key) {
     Entry removed = entries.remove(key);
     if (removed != null) {
-      bytes -= removed.json().length();
+      bytes -= byteCount(removed.json());
     }
   }
 
   private static String key(String library, String pid) {
     return library + "/" + pid;
+  }
+
+  /** The cache stores the UTF-8 response body, not Java UTF-16 characters. */
+  private static long byteCount(String json) {
+    return json.getBytes(StandardCharsets.UTF_8).length;
   }
 }

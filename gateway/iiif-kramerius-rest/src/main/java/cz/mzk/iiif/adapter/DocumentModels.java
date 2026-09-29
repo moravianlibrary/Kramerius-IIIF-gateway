@@ -4,8 +4,8 @@
  * Same shape as Translations and for the same reason: this is data that changes when Kramerius changes,
  * not logic, so it lives in a file the host can override at startup rather than in a release.
  *
- * Validation happens HERE, at load, not at request time. A shape name that no DocumentShape matches, a
- * promoteTo pointing at a model that does not exist, a promoteWhen naming no ChildKind — all of them are
+ * Validation happens HERE, at load, not at request time. A shape name that no IiifStructure matches, a
+ * promoteTo pointing at a model that does not exist, a promoteWhen naming no child relation — all of them are
  * configuration errors, and all of them abort startup with the offending value quoted. The alternative is
  * a manifest request failing at three in the morning because someone typed "PAGESS".
  */
@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,8 +27,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 public final class DocumentModels {
 
@@ -42,6 +42,15 @@ public final class DocumentModels {
   public static final String KRAMERIUS_70 = "70";
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final Set<String> CHILD_RELATIONS =
+      Set.of(
+          "PAGES",
+          "TRACKS",
+          "SOUND_UNITS",
+          "MONOGRAPH_UNITS",
+          "PERIODICAL_VOLUMES",
+          "PERIODICAL_ISSUES",
+          "CONVOLUTE_PARTS");
 
   private final Map<String, DocumentModel> models;
   private final List<String> components;
@@ -173,26 +182,26 @@ public final class DocumentModels {
       throw new IllegalArgumentException("model '%s' has no shape".formatted(solrName));
     }
 
-    DocumentShape shape;
+    IiifStructure shape;
     try {
-      shape = DocumentShape.valueOf(shapeName);
+      shape = IiifStructure.valueOf(shapeName);
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(
           "model '%s' has shape '%s', which is not one of %s — shapes are code, not configuration"
-              .formatted(solrName, shapeName, List.of(DocumentShape.values())),
+              .formatted(solrName, shapeName, List.of(IiifStructure.values())),
           e);
     }
 
-    Optional<ChildKind> children =
-        childKind(solrName, node.path("children").asText(null), "children");
-    if (shape.needsChildKind() && children.isEmpty()) {
+    Optional<String> children =
+        childRelation(solrName, node.path("children").asText(null), "children");
+    if (shape == IiifStructure.CHILD_COLLECTION && children.isEmpty()) {
       throw new IllegalArgumentException(
           "model '%s' has shape %s, which must name the `children` it collects"
               .formatted(solrName, shape));
     }
 
-    Optional<ChildKind> promoteWhen =
-        childKind(solrName, node.path("promoteWhen").asText(null), "promoteWhen");
+    Optional<String> promoteWhen =
+        childRelation(solrName, node.path("promoteWhen").asText(null), "promoteWhen");
 
     return new DocumentModel(
         solrName,
@@ -205,18 +214,16 @@ public final class DocumentModels {
         promoteWhen);
   }
 
-  private static Optional<ChildKind> childKind(String solrName, String name, String field) {
+  private static Optional<String> childRelation(String solrName, String name, String field) {
     if (name == null || name.isBlank()) {
       return Optional.empty();
     }
-    try {
-      return Optional.of(ChildKind.valueOf(name));
-    } catch (IllegalArgumentException e) {
+    if (!CHILD_RELATIONS.contains(name)) {
       throw new IllegalArgumentException(
           "model '%s' names `%s: %s`, which is not one of %s"
-              .formatted(solrName, field, name, List.of(ChildKind.values())),
-          e);
+              .formatted(solrName, field, name, CHILD_RELATIONS));
     }
+    return Optional.of(name);
   }
 
   /** The model for a Solr `model` value, or empty when this gateway cannot serve it. */

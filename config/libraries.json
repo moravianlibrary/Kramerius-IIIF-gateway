@@ -29,7 +29,6 @@
     "           prefix the catalogue wants in front of it. First match wins; nothing matching means no",
     "           link, because a wrong catalogue link looks to a reader like a record we found. MZK's",
     "           is bundled in the jar; this is how every other library gets one. A mapping that cannot",
-    "           is bundled in the jar; this is how every other library gets one. A mapping that cannot",
     "           be used STOPS THE GATEWAY, like every other mistake in this file.",
     "EVERY FIELD IS OPTIONAL and anything omitted comes from the registry. Naming a library here",
     "also overrules the registry's `alive` flag, because naming it is you saying to serve it.",
@@ -37,7 +36,7 @@
     "Keys starting with _ are notes and are ignored, including _example below.",
     "",
     "Without IIIF_REGISTRY_URL there is nothing to inherit from, so each entry must then carry at",
-    "least a url and a version. `scripts/libraries.py --snapshot <path>` writes a complete list in",
+    "least a url and a version. `dev/libraries.py --snapshot <path>` writes a complete list in",
     "that shape, for a deployment that must not depend on the registry at runtime."
   ],
   "libraries": {},

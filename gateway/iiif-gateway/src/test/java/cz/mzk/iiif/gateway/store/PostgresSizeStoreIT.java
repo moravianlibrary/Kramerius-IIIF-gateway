@@ -6,7 +6,7 @@
  * them can be tested without a real Postgres, because the guarantees being claimed are Postgres'.
  *
  *   1. A prefetch interrupted mid-walk and restarted does no work for subtrees already complete.
- *      The claim in DESIGN.md is that an iiif_document_sizes row IS the completion record, so no
+ *      An iiif_document_sizes row IS the completion record, so no
  *      separate marker is needed. If that is wrong, a re-run after a failure restarts instead of
  *      resuming — and a walk with no depth limit becomes unsafe, because the whole argument for having
  *      no limit is that repeating it is cheap.

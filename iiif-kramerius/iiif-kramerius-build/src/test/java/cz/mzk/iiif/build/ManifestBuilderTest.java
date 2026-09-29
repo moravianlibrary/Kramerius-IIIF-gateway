@@ -1,7 +1,7 @@
 /*
  * The manifest contract, shape by shape.
  *
- * Every test does two things: asserts the document says what docs/BEHAVIOUR.md says it should, and runs
+ * Every test does two things: asserts the document's intended content, and runs
  * it through the official IIIF v3 schema. The second is what stops a plausible-looking manifest from
  * being invalid IIIF, which is how the v1 gateway shipped `"cz"` language tags and Manifests with no
  * `items` for years without anyone noticing.
@@ -36,7 +36,7 @@ import cz.mzk.iiif.document.DocumentBundle;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.document.ImageSize;
 import cz.mzk.iiif.i18n.Translations;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 import cz.mzk.iiif.presentation.ManifestWriter;
 import cz.mzk.iiif.testing.Fixtures;
@@ -106,7 +106,10 @@ class ManifestBuilderTest {
           build(
               bundle(book("Kniha").build())
                   .pages(
-                      List.of(document(PAGE_1, "page", DocumentShape.PAGES).hasTiles(true).build()))
+                      List.of(
+                          document(PAGE_1, "page", IiifStructure.PAGED_MANIFEST)
+                              .hasTiles(true)
+                              .build()))
                   .sizes(Map.of(PAGE_1, ImageSize.of(100, 200, 3))));
 
       assertThat(((Iiif.Canvas) document.items().get(0)).label()).isNull();
@@ -120,7 +123,7 @@ class ManifestBuilderTest {
               bundle(book("Kniha").build())
                   .pages(
                       List.of(
-                          document(PAGE_1, "page", DocumentShape.PAGES)
+                          document(PAGE_1, "page", IiifStructure.PAGED_MANIFEST)
                               .label(none("1"))
                               .hasTiles(false)
                               .build())));
@@ -187,7 +190,7 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                  document(BOOK, "article", DocumentShape.PAGES)
+                  document(BOOK, "article", IiifStructure.PAGED_MANIFEST)
                       .label(none("Článek"))
                       .hasPdf(true)
                       .build()));
@@ -365,7 +368,7 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                  document(BOOK, "map", DocumentShape.PAGES)
+                  document(BOOK, "map", IiifStructure.PAGED_MANIFEST)
                       .label(none("Mapa"))
                       .coordinates(bbox(10.5, 10.6, 48.9, 49.0))
                       .build()));
@@ -387,7 +390,7 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                  document(BOOK, "map", DocumentShape.PAGES)
+                  document(BOOK, "map", IiifStructure.PAGED_MANIFEST)
                       .label(none("Mapa"))
                       .coordinates(bbox(16.6, 16.6, 49.2, 49.2))
                       .build()));
@@ -401,7 +404,7 @@ class ManifestBuilderTest {
       Iiif.Document linked =
           build(
               bundle(
-                  document(BOOK, "article", DocumentShape.PAGES)
+                  document(BOOK, "article", IiifStructure.PAGED_MANIFEST)
                       .label(none("Článek"))
                       .parent("uuid:issue", "Manifest", none("Lidové noviny"))
                       .build()));
@@ -410,23 +413,31 @@ class ManifestBuilderTest {
 
       Iiif.Document unlinked =
           build(
-              bundle(document(BOOK, "article", DocumentShape.PAGES).label(none("Článek")).build()));
+              bundle(
+                  document(BOOK, "article", IiifStructure.PAGED_MANIFEST)
+                      .label(none("Článek"))
+                      .build()));
       assertThat(unlinked.partOf()).isNull();
     }
 
     @Test
-    @DisplayName("requiredStatement names the institution and nothing else")
-    void requiredStatementIsAttributionOnly() {
-      // Licences used to be joined in here. Viewers render this as a banner that must be shown, and
-      // a
-      // licence notice runs to hundreds of words — it made the banner unreadable and duplicated the
-      // Licence metadata row word for word.
-      Iiif.Document document = build(bundle(book("Kniha").licenses(List.of("dnnto")).build()));
+    @DisplayName("a supplied access condition replaces the attribution statement")
+    void suppliedAccessStatementWins() {
+      Iiif.Document document =
+          build(
+              bundle(
+                      book("Kniha")
+                          .requiredStatement(
+                              new Iiif.KeyValue(
+                                  Map.of("en", List.of("Access conditions")),
+                                  Map.of("en", List.of("Available after sign-in"))))
+                          .build())
+                  .build());
 
-      assertThat(document.requiredStatement().value().get("cs"))
-          .containsExactly("Moravská zemská knihovna");
+      assertThat(document.requiredStatement().label().get("en"))
+          .containsExactly("Access conditions");
       assertThat(document.requiredStatement().value().get("en"))
-          .containsExactly("Moravian Library");
+          .containsExactly("Available after sign-in");
     }
   }
 
@@ -438,14 +449,14 @@ class ManifestBuilderTest {
 
     private DocumentBundle recording(DocumentRecord... tracks) {
       DocumentRecord unit =
-          document("uuid:side-a", "soundunit", DocumentShape.SOUND_RECORDING)
+          document("uuid:side-a", "soundunit", IiifStructure.MEDIA_MANIFEST)
               .label(none("Strana A"))
               .build();
       return bundle(
-              document(BOOK, "soundrecording", DocumentShape.SOUND_RECORDING)
+              document(BOOK, "soundrecording", IiifStructure.MEDIA_MANIFEST)
                   .label(none("Nahrávka"))
                   .build())
-          .soundUnits(List.of(new DocumentBundle.SoundUnit(unit, List.of(tracks))))
+          .mediaUnits(List.of(new DocumentBundle.MediaUnit(unit, List.of(tracks))))
           .build();
     }
 
@@ -487,12 +498,12 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                      document(BOOK, "monograph", DocumentShape.MEMBERS)
+                      document(BOOK, "monograph", IiifStructure.CHILD_COLLECTION)
                           .label(none("Sebrané spisy"))
                           .build())
                   .members(
                       List.of(
-                          document("uuid:v1", "monographunit", DocumentShape.PAGES)
+                          document("uuid:v1", "monographunit", IiifStructure.PAGED_MANIFEST)
                               .label(none("1. Básně"))
                               .build())));
 
@@ -500,6 +511,7 @@ class ManifestBuilderTest {
       assertThat(document.items()).hasSize(1);
       assertThat(((Iiif.Reference) document.items().get(0)).label().get("none"))
           .containsExactly("1. Básně");
+      assertThat(((Iiif.Reference) document.items().get(0)).id()).endsWith("uuid:v1");
     }
 
     @Test
@@ -508,15 +520,15 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                      document(BOOK, "collection", DocumentShape.COLLECTION_MEMBERS)
+                      document(BOOK, "collection", IiifStructure.VIRTUAL_COLLECTION)
                           .label(none("Sbírka"))
                           .build())
                   .members(
                       List.of(
-                          document("uuid:sub", "collection", DocumentShape.COLLECTION_MEMBERS)
+                          document("uuid:sub", "collection", IiifStructure.VIRTUAL_COLLECTION)
                               .label(none("Podsbírka"))
                               .build(),
-                          document("uuid:mono", "monograph", DocumentShape.PAGES)
+                          document("uuid:mono", "monograph", IiifStructure.PAGED_MANIFEST)
                               .label(none("Kniha"))
                               .build())));
 
@@ -532,12 +544,12 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                      document(BOOK, "collection", DocumentShape.COLLECTION_MEMBERS)
+                      document(BOOK, "collection", IiifStructure.VIRTUAL_COLLECTION)
                           .label(none("Sbírka"))
                           .build())
                   .members(
                       List.of(
-                          document(PAGE_1, "page", DocumentShape.PAGES)
+                          document(PAGE_1, "page", IiifStructure.PAGED_MANIFEST)
                               .label(none("Kniha (strana 14)"))
                               .parent("uuid:parent", "Manifest", none("Kniha"))
                               .build())));
@@ -554,16 +566,16 @@ class ManifestBuilderTest {
       Iiif.Document document =
           build(
               bundle(
-                      document(BOOK, "convolute", DocumentShape.MEMBERS)
+                      document(BOOK, "convolute", IiifStructure.CHILD_COLLECTION)
                           .label(none("Konvolut"))
                           .excludesOwnModel(true)
                           .build())
                   .members(
                       List.of(
-                          document(BOOK, "convolute", DocumentShape.MEMBERS)
+                          document(BOOK, "convolute", IiifStructure.CHILD_COLLECTION)
                               .label(none("Konvolut"))
                               .build(),
-                          document("uuid:part", "monograph", DocumentShape.PAGES)
+                          document("uuid:part", "monograph", IiifStructure.PAGED_MANIFEST)
                               .label(none("Část"))
                               .build())));
 

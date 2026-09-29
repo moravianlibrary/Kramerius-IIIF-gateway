@@ -9,6 +9,7 @@ package cz.mzk.iiif.adapter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -127,7 +128,7 @@ class AdapterSelectionTest {
     @Test
     @DisplayName("K5 and K4 are refused by name rather than served something broken")
     void belowEveryFloor() {
-      // 15 K5 libraries wait on Phase 9; the single 4.6.2 instance is out of scope entirely.
+      // Kramerius 5 has an adapter; the remaining 4.6.2 instance is out of scope.
       assertThat(adapterFor("5.8.4.4")).isEqualTo("none");
       assertThat(adapterFor("4.6.2")).isEqualTo("none");
       assertThat(REGISTRY.lowestSupported()).isEqualByComparingTo(Version.of(7, 0));
@@ -205,7 +206,15 @@ class AdapterSelectionTest {
     void sortsEndInUniqueKey() {
       SolrSchema schema = new Kramerius714().schema();
 
-      for (cz.mzk.iiif.kramerius.ChildKind kind : cz.mzk.iiif.kramerius.ChildKind.values()) {
+      for (String kind :
+          List.of(
+              "PAGES",
+              "TRACKS",
+              "SOUND_UNITS",
+              "MONOGRAPH_UNITS",
+              "PERIODICAL_VOLUMES",
+              "PERIODICAL_ISSUES",
+              "CONVOLUTE_PARTS")) {
         assertThat(schema.childSort(kind, "compositeId")).endsWith("compositeId asc");
         assertThat(schema.childSort(kind, "pid")).endsWith("pid asc");
       }
@@ -216,10 +225,7 @@ class AdapterSelectionTest {
     void pidsAreEscaped() {
       // v1 interpolated the raw path segment straight into q=.
       String filter =
-          new Kramerius70()
-              .schema()
-              .childFilter(
-                  "uuid:x\" OR model:page OR \"", cz.mzk.iiif.kramerius.ChildKind.PAGES, false);
+          new Kramerius70().schema().childFilter("uuid:x\" OR model:page OR \"", "PAGES", false);
 
       assertThat(filter).isEqualTo("own_parent.pid:\"uuid:x\\\" OR model:page OR \\\"\"");
     }
@@ -232,10 +238,8 @@ class AdapterSelectionTest {
       // which is why v1 could not have served an article even had its dispatch table listed one.
       SolrSchema schema = new Kramerius70().schema();
 
-      assertThat(schema.childFilter("uuid:a", cz.mzk.iiif.kramerius.ChildKind.PAGES, true))
-          .startsWith("foster_parents.pids:");
-      assertThat(schema.childFilter("uuid:a", cz.mzk.iiif.kramerius.ChildKind.PAGES, false))
-          .startsWith("own_parent.pid:");
+      assertThat(schema.childFilter("uuid:a", "PAGES", true)).startsWith("foster_parents.pids:");
+      assertThat(schema.childFilter("uuid:a", "PAGES", false)).startsWith("own_parent.pid:");
     }
   }
 }

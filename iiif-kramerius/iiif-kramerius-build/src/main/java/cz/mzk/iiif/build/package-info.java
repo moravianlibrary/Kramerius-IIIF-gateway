@@ -7,9 +7,8 @@
  * page dimensions, and which pages a prefetch has to visit.
  *
  * <p>It composes structure only. Descriptive text arrives from the adapter already mapped and is
- * copied through; see {@link cz.mzk.iiif.spi.DocumentRecord}.
+ * copied through; see {@link cz.mzk.iiif.document.DocumentRecord}.
  *
- * <p>{@code docs/BEHAVIOUR.md} is the specification for what comes out of here. When the two
- * disagree, the document is right and this is a bug.
+ * <p>Tests guard the output contract.
  */
 package cz.mzk.iiif.build;

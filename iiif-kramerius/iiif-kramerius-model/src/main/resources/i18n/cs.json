@@ -1,6 +1,11 @@
 {
   "_vocabulary": "page.type.* and language.* come verbatim from the Kramerius web client's own i18n, so a label reads the same here as it does in Kramerius. model.* are OURS on purpose: the client's are browse-category labels (plural, and monographunit collapsed into \"Kniha\"), which read wrong in a row describing one document.",
   "attribution.label": "Poskytuje",
+  "access.conditions": "Podmínky přístupu",
+  "access.open": "Dostupné online",
+  "access.login": "Dostupné po přihlášení",
+  "access.terminal": "Dostupné na terminálech knihovny",
+  "access.restricted": "Platí podmínky přístupu",
   "collection.pageOf": "{0} (strana {1})",
   "language.---": "žádný lingvistický obsah",
   "language.aar": "afarština",

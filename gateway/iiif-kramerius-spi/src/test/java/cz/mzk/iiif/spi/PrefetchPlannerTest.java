@@ -16,24 +16,23 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import cz.mzk.iiif.document.DocumentRecord;
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.testing.FakeRepository;
 
 class PrefetchPlannerTest {
 
   private static DocumentRecord page(String pid, boolean tiled) {
-    return document(pid, "page", DocumentShape.PAGES).hasTiles(tiled).build();
+    return document(pid, "page", IiifStructure.PAGED_MANIFEST).hasTiles(tiled).build();
   }
 
   /** A document that collects children of one kind. */
-  private static DocumentRecord collects(String pid, String model, ChildKind kind) {
-    return document(pid, model, DocumentShape.MEMBERS).childKind(kind).build();
+  private static DocumentRecord collects(String pid, String model, String kind) {
+    return document(pid, model, IiifStructure.CHILD_COLLECTION).build();
   }
 
   /** A document that holds pages directly. */
   private static DocumentRecord holdsPages(String pid, String model) {
-    return document(pid, model, DocumentShape.PAGES).build();
+    return document(pid, model, IiifStructure.PAGED_MANIFEST).build();
   }
 
   @Test
@@ -42,8 +41,7 @@ class PrefetchPlannerTest {
     FakeRepository repository =
         FakeRepository.mzk()
             .with(holdsPages("uuid:book", "monograph"))
-            .withChildren(
-                "uuid:book", ChildKind.PAGES, page("uuid:p1", true), page("uuid:p2", false));
+            .withChildren("uuid:book", "PAGES", page("uuid:p1", true), page("uuid:p2", false));
 
     List<PrefetchPlanner.DocumentPages> plan = PrefetchPlanner.plan(repository, "uuid:book");
 
@@ -56,18 +54,18 @@ class PrefetchPlannerTest {
   void recursesThroughVolumesAndIssues() {
     FakeRepository repository =
         FakeRepository.mzk()
-            .with(collects("uuid:per", "periodical", ChildKind.PERIODICAL_VOLUMES))
+            .with(collects("uuid:per", "periodical", "PERIODICAL_VOLUMES"))
             .withChildren(
                 "uuid:per",
-                ChildKind.PERIODICAL_VOLUMES,
-                collects("uuid:vol", "periodicalvolume", ChildKind.PERIODICAL_ISSUES))
+                "PERIODICAL_VOLUMES",
+                collects("uuid:vol", "periodicalvolume", "PERIODICAL_ISSUES"))
             .withChildren(
                 "uuid:vol",
-                ChildKind.PERIODICAL_ISSUES,
+                "PERIODICAL_ISSUES",
                 holdsPages("uuid:iss1", "periodicalitem"),
                 holdsPages("uuid:iss2", "periodicalitem"))
-            .withChildren("uuid:iss1", ChildKind.PAGES, page("uuid:a", true))
-            .withChildren("uuid:iss2", ChildKind.PAGES, page("uuid:b", true));
+            .withChildren("uuid:iss1", "PAGES", page("uuid:a", true))
+            .withChildren("uuid:iss2", "PAGES", page("uuid:b", true));
 
     List<PrefetchPlanner.DocumentPages> plan = PrefetchPlanner.plan(repository, "uuid:per");
 
@@ -81,13 +79,13 @@ class PrefetchPlannerTest {
   void cycleTerminates() {
     FakeRepository repository =
         FakeRepository.mzk()
-            .with(collects("uuid:conv", "convolute", ChildKind.CONVOLUTE_PARTS))
+            .with(collects("uuid:conv", "convolute", "CONVOLUTE_PARTS"))
             .withChildren(
                 "uuid:conv",
-                ChildKind.CONVOLUTE_PARTS,
-                collects("uuid:conv", "convolute", ChildKind.CONVOLUTE_PARTS),
+                "CONVOLUTE_PARTS",
+                collects("uuid:conv", "convolute", "CONVOLUTE_PARTS"),
                 holdsPages("uuid:part", "monograph"))
-            .withChildren("uuid:part", ChildKind.PAGES, page("uuid:p", true));
+            .withChildren("uuid:part", "PAGES", page("uuid:p", true));
 
     List<PrefetchPlanner.DocumentPages> plan = PrefetchPlanner.plan(repository, "uuid:conv");
 
@@ -100,7 +98,10 @@ class PrefetchPlannerTest {
   void noTiledPages() {
     FakeRepository repository =
         FakeRepository.mzk()
-            .with(document("uuid:pdf", "monograph", DocumentShape.PAGES).hasPdf(true).build());
+            .with(
+                document("uuid:pdf", "monograph", IiifStructure.PAGED_MANIFEST)
+                    .hasPdf(true)
+                    .build());
 
     assertThat(PrefetchPlanner.plan(repository, "uuid:pdf")).isEmpty();
   }

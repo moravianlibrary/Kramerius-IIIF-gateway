@@ -1,8 +1,8 @@
 /*
  * Which Solr fields exist at one version floor, and how to ask for them.
  *
- * This is where the 7.1.4 boundary actually lives. Probed across eight live instances (see
- * docs/DESIGN.md), exactly four fields we care about appear there: has_alto_content,
+ * This is where the 7.1.4 boundary actually lives. Probed across eight live Kramerius instances,
+ * exactly four fields we care about appear there: has_alto_content,
  * has_text_ocr_content, coords.is_point and count_volume. Everything else we use — has_tiles,
  * page.placement, licenses, count_page, id_sysno, page.index, track.length, modified, and all four
  * coords.bbox fields — is present from 7.0 up.
@@ -12,13 +12,11 @@
  *
  * Sorts end in the Solr uniqueKey because cursorMark is undefined without a total ordering. Which key
  * that is depends on the DEPLOYMENT, not the version — compositeId on SolrCloud, pid on standalone — so
- * it is passed in rather than declared here. See docs/DESIGN.md.
+ * it is passed in rather than declared here.
  */
 package cz.mzk.iiif.adapter;
 
 import java.util.List;
-
-import cz.mzk.iiif.kramerius.ChildKind;
 
 public class SolrSchema {
 
@@ -161,16 +159,17 @@ public class SolrSchema {
    * <p>A convolute's parts are whatever they are, so that one matches everything and lets the model
    * table decide what each becomes.
    */
-  public String modelFilter(ChildKind kind) {
+  public String modelFilter(String kind) {
     String field = modelField();
     return switch (kind) {
-      case PAGES -> field + ":" + pageModel();
-      case TRACKS -> field + ":track";
-      case SOUND_UNITS -> field + ":soundunit";
-      case MONOGRAPH_UNITS -> field + ":monographunit";
-      case PERIODICAL_VOLUMES -> field + ":periodicalvolume";
-      case PERIODICAL_ISSUES -> field + ":(periodicalitem OR supplement)";
-      case CONVOLUTE_PARTS -> "*:*";
+      case "PAGES" -> field + ":" + pageModel();
+      case "TRACKS" -> field + ":track";
+      case "SOUND_UNITS" -> field + ":soundunit";
+      case "MONOGRAPH_UNITS" -> field + ":monographunit";
+      case "PERIODICAL_VOLUMES" -> field + ":periodicalvolume";
+      case "PERIODICAL_ISSUES" -> field + ":(periodicalitem OR supplement)";
+      case "CONVOLUTE_PARTS" -> "*:*";
+      default -> throw new IllegalArgumentException("unknown child relation: " + kind);
     };
   }
 
@@ -206,7 +205,7 @@ public class SolrSchema {
   }
 
   /** The filter query selecting one kind of child. */
-  public String childFilter(String parentPid, ChildKind kind, boolean fostered) {
+  public String childFilter(String parentPid, String kind, boolean fostered) {
     String parent = fostered ? "foster_parents.pids" : "own_parent.pid";
     return parent + ":" + quote(parentPid);
   }
@@ -218,14 +217,15 @@ public class SolrSchema {
    * dedicated *.sort fields are single-valued, which multi-valued fields are not, and cursorMark
    * requires single-valued sort fields.
    */
-  public String childSort(ChildKind kind, String uniqueKey) {
+  public String childSort(String kind, String uniqueKey) {
     String primary =
         switch (kind) {
-          case PAGES -> "page.index asc";
-          case MONOGRAPH_UNITS -> "part.number.sort asc";
-          case PERIODICAL_VOLUMES -> "part.number.sort asc, date.min asc";
-          case PERIODICAL_ISSUES -> "date.min asc, issue.type.sort asc";
-          case SOUND_UNITS, TRACKS, CONVOLUTE_PARTS -> "rels_ext_index.sort asc";
+          case "PAGES" -> "page.index asc";
+          case "MONOGRAPH_UNITS" -> "part.number.sort asc";
+          case "PERIODICAL_VOLUMES" -> "part.number.sort asc, date.min asc";
+          case "PERIODICAL_ISSUES" -> "date.min asc, issue.type.sort asc";
+          case "SOUND_UNITS", "TRACKS", "CONVOLUTE_PARTS" -> "rels_ext_index.sort asc";
+          default -> throw new IllegalArgumentException("unknown child relation: " + kind);
         };
     return primary + ", " + uniqueKey + " asc";
   }

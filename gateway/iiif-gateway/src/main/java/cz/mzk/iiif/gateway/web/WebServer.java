@@ -5,7 +5,7 @@
  * is reachable on the internal network only. A static bearer token was the alternative and is worse: no
  * rotation, no identity, no revocation, and a secret to store and leak — where binding to an
  * unpublished interface needs no secret at all and puts access control in the deployment layer, which
- * is where an ops surface belongs. See docs/DESIGN.md.
+ * is where an ops surface belongs.
  *
  * CORS is `*` on every response because IIIF viewers are served from other origins and will not load a
  * manifest without it. That is not a relaxation: everything here is public read-only data, and the
@@ -20,6 +20,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
@@ -48,6 +51,13 @@ public final class WebServer implements AutoCloseable {
   private final Manifests manifests;
   private final Optional<SizeStore> store;
   private final RateLimiter limiter;
+  private final ScheduledExecutorService limiterEviction =
+      Executors.newSingleThreadScheduledExecutor(
+          runnable -> {
+            Thread thread = new Thread(runnable, "rate-limiter-eviction");
+            thread.setDaemon(true);
+            return thread;
+          });
 
   private Javalin publicServer;
   private Javalin adminServer;
@@ -72,6 +82,7 @@ public final class WebServer implements AutoCloseable {
     admin();
     publicRoutes(publicServer);
     publicServer.start(config.port());
+    limiterEviction.scheduleWithFixedDelay(limiter::evictIdle, 5, 5, TimeUnit.MINUTES);
     LOG.info("public listener on {}", config.port());
   }
 
@@ -186,18 +197,36 @@ public final class WebServer implements AutoCloseable {
     app.put(
         "/{library}/{pid}/dimensions",
         context -> {
+          if (store.isEmpty()) {
+            error(
+                context,
+                HttpStatus.NOT_IMPLEMENTED,
+                "no_store",
+                "this deployment has no size store",
+                context.pathParam("pid"));
+            return;
+          }
           // An idempotent state assertion: "these dimensions should be cached". A second call for a
           // complete document does no work, which is why the walk needs no depth or size limit.
-          store.ifPresent(s -> s.enqueue(context.pathParam("library"), context.pathParam("pid")));
+          store.get().enqueue(context.pathParam("library"), context.pathParam("pid"));
           context.status(HttpStatus.ACCEPTED).json(Map.of("state", "queued"));
         });
 
     app.delete(
         "/{library}/{pid}/dimensions",
         context -> {
+          if (store.isEmpty()) {
+            error(
+                context,
+                HttpStatus.NOT_IMPLEMENTED,
+                "no_store",
+                "this deployment has no size store",
+                context.pathParam("pid"));
+            return;
+          }
           // The one case no automatic rule can catch: an image re-derived without its Fedora
           // lastModifiedDate moving, so the staleness check cannot see it.
-          store.ifPresent(s -> s.evict(context.pathParam("library"), context.pathParam("pid")));
+          store.get().evict(context.pathParam("library"), context.pathParam("pid"));
           // And the rendered manifest built from them, which would otherwise keep serving the
           // dimensions this call exists to discard.
           manifestCache.evict(context.pathParam("library"), context.pathParam("pid"));
@@ -586,6 +615,7 @@ public final class WebServer implements AutoCloseable {
 
   @Override
   public void close() {
+    limiterEviction.shutdownNow();
     if (publicServer != null) {
       publicServer.stop();
     }

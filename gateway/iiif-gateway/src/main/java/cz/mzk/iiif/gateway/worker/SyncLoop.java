@@ -6,8 +6,8 @@
  *     modified:[watermark TO *] AND model:page AND has_tiles:true
  *
  * by cursorMark in **modified asc** order, fetching info.json for pages that are missing — or cached but
- * whose `modified` is newer than our fetched_at — advancing the watermark to the greatest `modified` in
- * each batch AS THAT BATCH COMPLETES.
+ * whose `modified` is newer than our fetched_at. A completed pass records its start time minus an
+ * overlap as the next lower bound.
  *
  * The sort order is load-bearing. Because the walk is ordered by the same field the watermark tracks,
  * and the watermark moves after every batch, **the watermark alone is a valid resume point**: a run that
@@ -16,9 +16,9 @@
  * one that always works. Ordering by anything else would make the cursor the only resume point, and a
  * lost cursor would mean starting from zero.
  *
- * Ties are common — a whole document is ingested at one instant, so hundreds of pages share a `modified`
- * — so the watermark cannot advance past a tie boundary safely. The overlap window covers that, and
- * re-processing a handful of already-cached pages costs a bulk lookup and no upstream requests.
+ * Ties are common — a whole document is ingested at one instant, so hundreds of pages share a `modified`.
+ * The overlap window covers that and records committed while the pass ran; re-processing cached pages
+ * costs a bulk lookup and no upstream requests.
  *
  * `modified` and not `indexed`: what we cache is a function of the IMAGE, not of the index. A full
  * reindex bumps `indexed` on all 76 million MZK pages and would force a complete re-scan that fetches
@@ -56,9 +56,7 @@ final class SyncLoop {
       return;
     }
 
-    // Re-scan a small overlap rather than trusting the boundary exactly: a document committed
-    // slightly out of order would otherwise be stranded on it forever.
-    Instant from = state.watermark().minus(config.syncOverlap());
+    Instant from = state.watermark();
     LOG.info("{}: sync pass from {}", state.library(), from);
 
     DocumentWalk walk = new DocumentWalk(ready.library(), store, config);

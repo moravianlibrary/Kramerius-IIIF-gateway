@@ -4,7 +4,7 @@
 #
 # This is how the *next* adapter boundary gets found: run it after a Kramerius release, and if a field
 # set has changed, add an adapter whose floor is that version. The current boundaries are recorded in
-# docs/BEHAVIOUR.md; this script is what produced them.
+# the adapter and schema implementations; this script is what produced them.
 #
 # Two things here are not incidental, and removing either makes the output silently wrong:
 #
@@ -19,9 +19,9 @@
 # of anything about the schema.
 #
 # Usage:
-#   scripts/capabilities.sh                  # every alive K7 library
-#   scripts/capabilities.sh mzk ntk cbvk     # only these library codes
-#   FIELDS="has_tiles licenses" scripts/capabilities.sh
+#   dev/capabilities.sh                  # every alive K7 library
+#   dev/capabilities.sh mzk ntk cbvk     # only these library codes
+#   FIELDS="has_tiles licenses" dev/capabilities.sh
 
 set -uo pipefail
 

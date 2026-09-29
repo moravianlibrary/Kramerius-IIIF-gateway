@@ -26,8 +26,7 @@ import cz.mzk.iiif.adapter.v70.Kramerius70;
 import cz.mzk.iiif.adapter.v714.Kramerius714;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.i18n.Translations;
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 class Kramerius50Test {
 
@@ -110,14 +109,14 @@ class Kramerius50Test {
       // K5
       // has to fall back to start/rows and sort client-side.
       assertThat(ADAPTER.schema().supportsCursorMark()).isFalse();
-      assertThat(ADAPTER.schema().childSort(ChildKind.PAGES, "PID")).isNull();
+      assertThat(ADAPTER.schema().childSort("PAGES", "PID")).isNull();
     }
 
     @Test
     @DisplayName("children hang off parent_pid, and there is no foster relationship")
     void childFilter() {
-      String owned = ADAPTER.schema().childFilter("uuid:x", ChildKind.PAGES, false);
-      String fostered = ADAPTER.schema().childFilter("uuid:x", ChildKind.PAGES, true);
+      String owned = ADAPTER.schema().childFilter("uuid:x", "PAGES", false);
+      String fostered = ADAPTER.schema().childFilter("uuid:x", "PAGES", true);
 
       assertThat(owned).isEqualTo("parent_pid:\"uuid:x\"");
       // K5 has no foster relationship at all, so asking for one changes nothing.
@@ -146,7 +145,7 @@ class Kramerius50Test {
     void fields() {
       DocumentRecord record = record();
 
-      assertThat(record.shape()).isEqualTo(DocumentShape.PAGES);
+      assertThat(record.shape()).isEqualTo(IiifStructure.PAGED_MANIFEST);
       assertThat(record.metadata())
           .anySatisfy(
               row -> assertThat(row.value().get("none")).contains("Machar, Josef Svatopluk"));

@@ -3,7 +3,7 @@
  *
  * A record loaded from models/kramerius.json rather than an enum, because the table is data: Kramerius
  * introduces models, and supporting a new one should be an entry in a file rather than a release. The
- * SHAPE is still an enum — see DocumentShape — because the builder switches on it exhaustively, so a
+ * SHAPE is still an enum — see IiifStructure — because the builder switches on it exhaustively, so a
  * shape only exists if there is code that knows how to build it.
  *
  * Type labels are not here either; they are i18n/<language>.json under `model.<solrName>`.
@@ -16,15 +16,14 @@ package cz.mzk.iiif.adapter;
 
 import java.util.Optional;
 
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 public record DocumentModel(
     String solrName,
-    DocumentShape shape,
+    IiifStructure shape,
 
-    /** Which children a MEMBERS shape collects. Empty for shapes that do not collect any. */
-    Optional<ChildKind> children,
+    /** Which children a CHILD_COLLECTION shape collects. Empty for other shapes. */
+    Optional<String> children,
 
     /**
      * Pages belong to an ancestor rather than to this model.
@@ -47,7 +46,7 @@ public record DocumentModel(
     Optional<String> promoteTo,
 
     /** Which children trigger the promotion. */
-    Optional<ChildKind> promoteWhen) {
+    Optional<String> promoteWhen) {
 
   /** Translation key for this model's human-readable type. */
   public String labelKey() {

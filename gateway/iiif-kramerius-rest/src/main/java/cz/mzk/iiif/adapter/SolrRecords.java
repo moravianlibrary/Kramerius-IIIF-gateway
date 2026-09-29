@@ -7,10 +7,10 @@
  *
  * Every enriched field is Optional on purpose: core must never REQUIRE something only some instances
  * index. That constraint is what lets 7.0.x work without the 7.1.4 fields, and what will let K5 work at
- * all — see docs/DESIGN.md.
+ * all.
  *
- * The metadata row order is specified in docs/BEHAVIOUR.md, not chosen here. When the two disagree the
- * document is right and this is a bug.
+ * The metadata row order is deliberate, not chosen by a viewer. Tests make that order an executable
+ * contract.
  */
 package cz.mzk.iiif.adapter;
 
@@ -28,7 +28,7 @@ import cz.mzk.iiif.build.MetadataRows;
 import cz.mzk.iiif.document.BoundingBox;
 import cz.mzk.iiif.document.DocumentRecord;
 import cz.mzk.iiif.i18n.Translations;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.presentation.Iiif;
 import cz.mzk.iiif.presentation.LanguageMap;
 
@@ -93,9 +93,9 @@ public final class SolrRecords implements RecordMapper {
         DocumentRecord.of(pid, resolved.solrName(), resolved.shape())
             .excludesOwnModel(resolved.excludesOwnModel())
             .label(LanguageMap.none(title(doc)))
-            .metadata(metadata(doc, resolved));
+            .metadata(metadata(doc, resolved))
+            .requiredStatement(accessStatement(accessLicenses(doc)));
 
-    resolved.children().ifPresent(record::childKind);
     text(doc, "collection.desc").map(LanguageMap::none).ifPresent(record::summary);
     text(doc, "id_sysno").ifPresent(record::systemNumber);
     integer(doc, "count_page").ifPresent(record::pageCount);
@@ -118,7 +118,7 @@ public final class SolrRecords implements RecordMapper {
         text(doc, "pid").orElseThrow(() -> new IllegalArgumentException("page with no pid"));
 
     DocumentRecord.Builder record =
-        DocumentRecord.of(pid, text(doc, "model").orElse("page"), DocumentShape.PAGES)
+        DocumentRecord.of(pid, text(doc, "model").orElse("page"), IiifStructure.PAGED_MANIFEST)
             .hasTiles(bool(doc, "has_tiles").orElse(false));
 
     Optional.ofNullable(pageLabel(doc)).ifPresent(record::label);
@@ -148,7 +148,7 @@ public final class SolrRecords implements RecordMapper {
         text(doc, "pid").orElseThrow(() -> new IllegalArgumentException("component with no pid"));
 
     DocumentRecord.Builder record =
-        DocumentRecord.of(pid, text(doc, "model").orElse("track"), DocumentShape.SOUND_RECORDING)
+        DocumentRecord.of(pid, text(doc, "model").orElse("track"), IiifStructure.MEDIA_MANIFEST)
             .label(LanguageMap.none(text(doc, "title.search").orElse(null)));
 
     number(doc, "track.length").ifPresent(record::trackLength);
@@ -208,7 +208,7 @@ public final class SolrRecords implements RecordMapper {
     return LanguageMap.immutable(label);
   }
 
-  /** title.search already has the subtitle glued in — see docs/DESIGN.md, verified in Kramerius. */
+  /** title.search already has the subtitle glued in, verified in Kramerius. */
   private String title(JsonNode doc) {
     return text(doc, "title.search").or(() -> text(doc, "root.title")).orElse(null);
   }
@@ -289,6 +289,53 @@ public final class SolrRecords implements RecordMapper {
   }
 
   /**
+   * The short access condition viewers must expose when a Kramerius 7 licence configuration is
+   * available. The licence label is the library's own wording; accessType adds the concise action a
+   * reader has to take. The longer unauthenticated notice belongs in metadata, where it remains
+   * available without turning a viewer's required-statement banner into a legal notice.
+   */
+  private Iiif.KeyValue accessStatement(List<String> ids) {
+    if (ids.isEmpty() || licenses.isEmpty()) {
+      return null;
+    }
+    Map<String, List<String>> label = translations.lookup("access.conditions");
+    if (label == null) {
+      return null;
+    }
+
+    List<String> ordered =
+        ids.stream()
+            .filter(licenses::containsKey)
+            .sorted(java.util.Comparator.comparingInt(id -> licenses.get(id).rank()))
+            .toList();
+    Map<String, List<String>> values = new java.util.LinkedHashMap<>();
+    for (String id : ordered) {
+      LicenseConfig.License license = licenses.get(id);
+      Map<String, List<String>> access =
+          translations.lookup("access." + license.accessType().orElse("restricted"));
+      license
+          .label()
+          .forEach(
+              (language, names) -> {
+                if (names.isEmpty()) {
+                  return;
+                }
+                String name = names.get(0);
+                String condition =
+                    access == null
+                        ? null
+                        : access.getOrDefault(language, List.of()).stream()
+                            .findFirst()
+                            .orElse(null);
+                values
+                    .computeIfAbsent(language, ignored -> new java.util.ArrayList<>())
+                    .add(condition == null ? name : name + " — " + condition);
+              });
+    }
+    return values.isEmpty() ? null : new Iiif.KeyValue(label, LanguageMap.immutable(values));
+  }
+
+  /**
    * Escapes text being placed inside an HTML metadata value.
    *
    * <p>These notices are written by librarians and already contain quotes and ampersands; unescaped
@@ -333,11 +380,11 @@ public final class SolrRecords implements RecordMapper {
    * 6 394 distinct values at MZK it also ate sixteen real places — Ulm, Dux, Rom, Vie, Zug, Ams,
    * Brn and Augsburg's "Aug" among them. A place is not a code because it is short.
    *
-   * <p>The list is generated by scripts/country-codes.py: 334 current codes from id.loc.gov plus
-   * the deprecated ones the libraries still hold (Xxr, Yu, Cs, Uk, Us), which the published
-   * vocabulary does not enumerate and which are still codes rather than places. The fallback
-   * survives for the case the list cannot help with — a document whose ONLY value is a code still
-   * has to say something.
+   * <p>The list is generated by dev/country-codes.py: 334 current codes from id.loc.gov plus the
+   * deprecated ones the libraries still hold (Xxr, Yu, Cs, Uk, Us), which the published vocabulary
+   * does not enumerate and which are still codes rather than places. The fallback survives for the
+   * case the list cannot help with — a document whose ONLY value is a code still has to say
+   * something.
    */
   private static List<String> places(JsonNode doc) {
     List<String> all = strings(doc, "publication_places.facet");
@@ -381,6 +428,23 @@ public final class SolrRecords implements RecordMapper {
     all.addAll(strings(doc, "licenses_of_ancestors"));
     all.addAll(strings(doc, "contains_licenses"));
 
+    if (all.isEmpty()) {
+      text(doc, "accessibility").ifPresent(all::add);
+    }
+    return List.copyOf(all);
+  }
+
+  /**
+   * Licences that restrict this document itself, rather than one of its children.
+   *
+   * <p>`contains_licenses` belongs in metadata: a periodical with one terminal-only issue should
+   * disclose that fact without presenting the whole periodical as terminal-only. A required
+   * statement is a condition viewers must display for the object being viewed, so it only draws
+   * from the object's own and inherited licences.
+   */
+  private static List<String> accessLicenses(JsonNode doc) {
+    LinkedHashSet<String> all = new LinkedHashSet<>(strings(doc, "licenses"));
+    all.addAll(strings(doc, "licenses_of_ancestors"));
     if (all.isEmpty()) {
       text(doc, "accessibility").ifPresent(all::add);
     }

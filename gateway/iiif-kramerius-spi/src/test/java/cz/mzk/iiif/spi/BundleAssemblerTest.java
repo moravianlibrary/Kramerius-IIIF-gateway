@@ -21,8 +21,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import cz.mzk.iiif.document.ImageSize;
-import cz.mzk.iiif.kramerius.ChildKind;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 import cz.mzk.iiif.testing.FakeRepository;
 
 class BundleAssemblerTest {
@@ -73,7 +72,7 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(book("Kniha").build())
-              .withChildren(BOOK, ChildKind.PAGES, page(PAGE_1, "1").build())
+              .withChildren(BOOK, "PAGES", page(PAGE_1, "1").build())
               .withCachedSize(PAGE_1, ImageSize.of(10, 20, 3));
 
       var bundle = found(repository, DimensionPolicy.ALWAYS).bundle();
@@ -88,14 +87,13 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "monograph", DocumentShape.MEMBERS)
+                  document(BOOK, "monograph", IiifStructure.CHILD_COLLECTION)
                       .label(none("Sebrané spisy"))
-                      .childKind(ChildKind.MONOGRAPH_UNITS)
                       .build())
               .withChildren(
                   BOOK,
-                  ChildKind.MONOGRAPH_UNITS,
-                  document("uuid:v1", "monographunit", DocumentShape.PAGES)
+                  "MONOGRAPH_UNITS",
+                  document("uuid:v1", "monographunit", IiifStructure.PAGED_MANIFEST)
                       .label(none("1. Básně"))
                       .build());
 
@@ -115,12 +113,10 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "periodicalvolume", DocumentShape.MEMBERS)
+                  document(BOOK, "periodicalvolume", IiifStructure.CHILD_COLLECTION)
                       .label(none("1922"))
-                      .childKind(ChildKind.PERIODICAL_ISSUES)
                       .build())
-              .withChildren(
-                  BOOK, ChildKind.PAGES, page(PAGE_1, "1").build(), page(PAGE_2, "2").build());
+              .withChildren(BOOK, "PAGES", page(PAGE_1, "1").build(), page(PAGE_2, "2").build());
 
       var bundle = found(repository, DimensionPolicy.ALWAYS).bundle();
 
@@ -136,12 +132,12 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "sheetmusic", DocumentShape.PAGES)
+                  document(BOOK, "sheetmusic", IiifStructure.PAGED_MANIFEST)
                       .label(none("Partitura"))
                       .build())
               .withChildDocuments(
                   BOOK,
-                  document("uuid:inner", "sheetmusic", DocumentShape.PAGES)
+                  document("uuid:inner", "sheetmusic", IiifStructure.PAGED_MANIFEST)
                       .label(none("První část"))
                       .build());
 
@@ -160,13 +156,12 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "monograph", DocumentShape.MEMBERS)
+                  document(BOOK, "monograph", IiifStructure.CHILD_COLLECTION)
                       .label(none("Sebrané spisy"))
-                      .childKind(ChildKind.MONOGRAPH_UNITS)
                       .build())
               .withChildDocuments(
                   BOOK,
-                  document("uuid:inner", "monograph", DocumentShape.PAGES)
+                  document("uuid:inner", "monograph", IiifStructure.PAGED_MANIFEST)
                       .label(none("Vnitřní svazek"))
                       .build());
 
@@ -183,9 +178,8 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "periodicalvolume", DocumentShape.MEMBERS)
+                  document(BOOK, "periodicalvolume", IiifStructure.CHILD_COLLECTION)
                       .label(none("Prázdný svazek"))
-                      .childKind(ChildKind.PERIODICAL_ISSUES)
                       .build());
 
       var bundle = found(repository, DimensionPolicy.ALWAYS).bundle();
@@ -202,17 +196,16 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "periodicalvolume", DocumentShape.MEMBERS)
+                  document(BOOK, "periodicalvolume", IiifStructure.CHILD_COLLECTION)
                       .label(none("1923"))
-                      .childKind(ChildKind.PERIODICAL_ISSUES)
                       .build())
               .withChildren(
                   BOOK,
-                  ChildKind.PERIODICAL_ISSUES,
-                  document("uuid:issue-1", "periodicalitem", DocumentShape.PAGES)
+                  "PERIODICAL_ISSUES",
+                  document("uuid:issue-1", "periodicalitem", IiifStructure.PAGED_MANIFEST)
                       .label(none("č. 1"))
                       .build())
-              .withChildren(BOOK, ChildKind.PAGES, page(PAGE_1, "1").build());
+              .withChildren(BOOK, "PAGES", page(PAGE_1, "1").build());
 
       var bundle = found(repository, DimensionPolicy.ALWAYS).bundle();
 
@@ -226,26 +219,26 @@ class BundleAssemblerTest {
       FakeRepository repository =
           FakeRepository.mzk()
               .with(
-                  document(BOOK, "soundrecording", DocumentShape.SOUND_RECORDING)
+                  document(BOOK, "soundrecording", IiifStructure.MEDIA_MANIFEST)
                       .label(none("Nahrávka"))
                       .build())
               .withChildren(
                   BOOK,
-                  ChildKind.SOUND_UNITS,
-                  document("uuid:side-a", "soundunit", DocumentShape.SOUND_RECORDING)
+                  "MEDIA_UNITS",
+                  document("uuid:side-a", "soundunit", IiifStructure.MEDIA_MANIFEST)
                       .label(none("Strana A"))
                       .build())
               .withChildren(
                   "uuid:side-a",
-                  ChildKind.TRACKS,
-                  document("uuid:t1", "track", DocumentShape.SOUND_RECORDING)
+                  "TRACKS",
+                  document("uuid:t1", "track", IiifStructure.MEDIA_MANIFEST)
                       .label(none("Píseň"))
                       .build());
 
       var bundle = found(repository, DimensionPolicy.ALWAYS).bundle();
 
-      assertThat(bundle.soundUnits()).hasSize(1);
-      assertThat(bundle.soundUnits().get(0).tracks()).hasSize(1);
+      assertThat(bundle.mediaUnits()).hasSize(1);
+      assertThat(bundle.mediaUnits().get(0).tracks()).hasSize(1);
     }
 
     @Test
@@ -279,7 +272,7 @@ class BundleAssemblerTest {
     private FakeRepository twoUncachedPages() {
       return FakeRepository.mzk()
           .with(book("Kniha").build())
-          .withChildren(BOOK, ChildKind.PAGES, page(PAGE_1, "1").build(), page(PAGE_2, "2").build())
+          .withChildren(BOOK, "PAGES", page(PAGE_1, "1").build(), page(PAGE_2, "2").build())
           .withFetchableSize(PAGE_1, ImageSize.of(2480, 3508, 3))
           .withFetchableSize(PAGE_2, ImageSize.of(2470, 3500, 3));
     }
@@ -342,8 +335,8 @@ class BundleAssemblerTest {
               .with(book("Kniha").build())
               .withChildren(
                   BOOK,
-                  ChildKind.PAGES,
-                  document(PAGE_1, "page", DocumentShape.PAGES).hasTiles(false).build());
+                  "PAGES",
+                  document(PAGE_1, "page", IiifStructure.PAGED_MANIFEST).hasTiles(false).build());
 
       BundleAssembler.Result.Found result = found(repository, DimensionPolicy.ALWAYS);
 

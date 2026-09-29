@@ -52,7 +52,7 @@ public final class Libraries {
     /** No such code in the registry or the static list. */
     record Unknown(String code) implements Resolution {}
 
-    /** Below every adapter floor — the one K4 instance, and K5 until Phase 9. */
+    /** Below every supported adapter floor, such as the remaining Kramerius 4 instance. */
     record Unsupported(String code, String version, String lowestSupported) implements Resolution {}
 
     /** The registry says it is down. Failing fast beats timing out. */
@@ -199,7 +199,6 @@ public final class Libraries {
     // independently
     // of the Kramerius release, and on K5 whether there is one at all is a deployment choice. The
     // probe needs Solr to find public pages to ask about, which is why it comes after the client.
-    // See docs/DESIGN.md.
     ImageApi.Profile imageService =
         ImageApi.probe(http, url, solr, adapter.get().schema(), config.readTimeout());
     if (adapter.get().imageServiceIsCertain()) {

@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import cz.mzk.iiif.adapter.DocumentModels;
-import cz.mzk.iiif.kramerius.DocumentShape;
+import cz.mzk.iiif.kramerius.IiifStructure;
 
 class ModelDirectoryTest {
 
@@ -87,13 +87,14 @@ class ModelDirectoryTest {
       table(
           directory,
           """
-          {"models": {"newthing": {"shape": "PAGES"}}}
+          {"models": {"newthing": {"shape": "PAGED_MANIFEST"}}}
           """);
 
       DocumentModels models = ModelDirectory.load(Optional.of(directory.toString()), FLOOR);
 
       assertThat(models.find("newthing")).isPresent();
-      assertThat(models.find("newthing").orElseThrow().shape()).isEqualTo(DocumentShape.PAGES);
+      assertThat(models.find("newthing").orElseThrow().shape())
+          .isEqualTo(IiifStructure.PAGED_MANIFEST);
       // And the bundled ones survived, which is the whole difference between merging and replacing.
       assertThat(models.find("monograph")).isPresent();
       assertThat(models.find("periodicalvolume")).isPresent();
@@ -102,13 +103,15 @@ class ModelDirectoryTest {
     @Test
     @DisplayName("a model present in both is taken whole from the operator, not half-merged")
     void overridesWholeModels(@TempDir Path directory) throws IOException {
-      // Bundled `monograph` is PAGES with promoteTo=monographcollection. Overriding it with a bare
-      // PAGES must drop the promotion rather than keep it: a model is a coherent unit, and merging
+      // Bundled `monograph` is PAGED_MANIFEST with promoteTo=monographcollection. Overriding it
+      // with a bare
+      // PAGED_MANIFEST must drop the promotion rather than keep it: a model is a coherent unit, and
+      // merging
       // field-by-field would produce a shape nobody wrote.
       table(
           directory,
           """
-          {"models": {"monograph": {"shape": "PAGES"}}}
+          {"models": {"monograph": {"shape": "PAGED_MANIFEST"}}}
           """);
 
       DocumentModels models = ModelDirectory.load(Optional.of(directory.toString()), FLOOR);
@@ -140,7 +143,7 @@ class ModelDirectoryTest {
       table(
           directory,
           """
-          {"models": {"newthing": {"shape": "PAGES", "promoteTo": "monographcollection",
+          {"models": {"newthing": {"shape": "PAGED_MANIFEST", "promoteTo": "monographcollection",
                                    "promoteWhen": "MONOGRAPH_UNITS"}}}
           """);
 
@@ -166,7 +169,7 @@ class ModelDirectoryTest {
     @Test
     @DisplayName("a shape no code implements stops the gateway, naming it")
     void unknownShape(@TempDir Path directory) throws IOException {
-      // The builder switches on DocumentShape exhaustively, so a shape exists only if something
+      // The builder switches on IiifStructure exhaustively, so a shape exists only if something
       // knows
       // how to build one. Accepting this would fail per-request, later, somewhere else.
       table(
@@ -186,7 +189,7 @@ class ModelDirectoryTest {
       table(
           directory,
           """
-          {"models": {"newthing": {"shape": "PAGES", "promoteTo": "nowhere",
+          {"models": {"newthing": {"shape": "PAGED_MANIFEST", "promoteTo": "nowhere",
                                    "promoteWhen": "MONOGRAPH_UNITS"}}}
           """);
 

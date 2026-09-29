@@ -3,7 +3,7 @@
  *
  * Stubbed rather than depended on, so this module compiles anywhere without a Kramerius checkout — which
  * is the point: it proves the SEAM is implementable, not that any particular Kramerius release is.
- * docs/KRAMERIUS.md maps each method onto the real class that provides it.
+ * An embedding implements these operations with the Kramerius classes available to it.
  *
  * Notice what is NOT here: no HTTP, no adapter selection, no registry, no version negotiation. An
  * application talking to its own repository knows what version it is.
@@ -33,18 +33,32 @@ public interface KrameriusApi {
     }
   }
 
+  /** A sound unit and its ordered tracks. */
+  record MediaUnit(SolrDocument unit, List<SolrDocument> tracks) {
+
+    public MediaUnit {
+      tracks = List.copyOf(tracks);
+    }
+  }
+
   Optional<SolrDocument> byPid(String pid);
 
-  /** Children of one parent, already in reading order. */
-  List<SolrDocument> childrenOf(String pid, String model);
+  /** Pages of a manifest, in reading order. */
+  List<SolrDocument> pagesOf(String pid);
+
+  /** Members of a collection, in display order. */
+  List<SolrDocument> membersOf(String pid);
+
+  /** Sound units of a recording, each with its ordered tracks. */
+  List<MediaUnit> mediaUnitsOf(String pid);
 
   /**
    * The dimensions of a page image.
    *
    * <p>In a real deployment this is the one method whose cost varies: reading from Akubra locally
    * is nearly free, but most Czech libraries serve tiles from a separate image server, so this is
-   * still an info.json per page. See docs/KRAMERIUS.md — it is why embedding does not remove the
-   * need for a dimension cache.
+   * still an info.json per page. Embedding therefore does not remove the need for a dimension
+   * cache.
    */
   Optional<int[]> imageSize(String pagePid);
 

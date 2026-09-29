@@ -11,6 +11,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -96,7 +98,7 @@ public final class Manifests {
   private final ManifestConfig manifestConfig;
 
   /** Collapses concurrent requests for the same document within this process. */
-  private final Map<String, Object> inFlight = new ConcurrentHashMap<>();
+  private final Map<String, CompletableFuture<Result>> inFlight = new ConcurrentHashMap<>();
 
   public Manifests(Config config, Libraries libraries, Optional<SizeStore> store) {
     this.libraries = libraries;
@@ -110,19 +112,38 @@ public final class Manifests {
   }
 
   public Result get(String code, String pid) {
-    Libraries.Resolution resolution = libraries.resolve(code);
-    if (!(resolution instanceof Libraries.Resolution.Ready ready)) {
-      return new Result.LibraryProblem(resolution);
+    String key = code + "/" + pid;
+    CompletableFuture<Result> created = new CompletableFuture<>();
+    CompletableFuture<Result> running = inFlight.putIfAbsent(key, created);
+    if (running != null) {
+      return await(running);
     }
-    Libraries.Library library = ready.library();
-
-    Object lock = inFlight.computeIfAbsent(code + "/" + pid, key -> new Object());
     try {
-      synchronized (lock) {
-        return build(library, pid);
+      Libraries.Resolution resolution = libraries.resolve(code);
+      Result result;
+      if (resolution instanceof Libraries.Resolution.Ready ready) {
+        result = build(ready.library(), pid);
+      } else {
+        result = new Result.LibraryProblem(resolution);
       }
+      created.complete(result);
+      return result;
+    } catch (RuntimeException e) {
+      created.completeExceptionally(e);
+      throw e;
     } finally {
-      inFlight.remove(code + "/" + pid, lock);
+      inFlight.remove(key, created);
+    }
+  }
+
+  private static Result await(CompletableFuture<Result> running) {
+    try {
+      return running.join();
+    } catch (CompletionException e) {
+      if (e.getCause() instanceof RuntimeException failure) {
+        throw failure;
+      }
+      throw e;
     }
   }
 
