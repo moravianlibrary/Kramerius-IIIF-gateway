@@ -42,9 +42,10 @@ ARG SYSTEM_COMMIT=unknown
 ENV SYSTEM_VERSION=${SYSTEM_VERSION} \
     SYSTEM_COMMIT=${SYSTEM_COMMIT}
 
-# Never run as root; nothing here needs it.
+# Never run as root; nothing here needs it. USER is numeric so Kubernetes can verify runAsNonRoot —
+# with a name the kubelet refuses to start the container.
 RUN useradd --system --uid 10001 --create-home iiif
-USER iiif
+USER 10001
 WORKDIR /app
 
 COPY --from=build --chown=iiif:iiif /src/gateway/iiif-gateway/target/iiif-gateway-*.jar /app/iiif-gateway.jar
